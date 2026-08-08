@@ -1,0 +1,310 @@
+import json
+
+from django.db import models
+from import_export import resources
+from import_export.admin import ImportExportModelAdmin
+from import_export.fields import Field
+from import_export.formats import base_formats
+from import_export.widgets import ForeignKeyWidget, Widget
+
+from app.models.auth import User, StudentProfile
+from app.models.branch import Branch
+from app.models.coin import CoinProduct
+from app.models.mentors import Mentor
+from app.models.month_hero import MonthHero
+from app.models.news import News
+from app.models.payment import StudentPaymentHistory
+from app.models.portfolio import Portfolio
+from app.models.question import Course, Module, Lesson, Question
+from app.models.test import TestSession, TestSessionQuestion, TestSessionAnswer
+
+
+class JSONWidget(Widget):
+    """
+    JSONFieldlarni to'g'ri import/export qilish uchun.
+
+    Exportda:
+        "[{\"type\": \"image\"}]"
+    emas, balki:
+        [{"type": "image"}]
+    ko'rinishida chiqaradi.
+
+    Importda esa JSON string yoki real dict/list bo'lsa ham qabul qiladi.
+    """
+
+    def clean(self, value, row=None, **kwargs):
+        if value in ("", None):
+            return None
+
+        if isinstance(value, (dict, list)):
+            return value
+
+        try:
+            return json.loads(value)
+        except (TypeError, json.JSONDecodeError):
+            return value
+
+    def render(self, value, obj=None, **kwargs):
+        if value in ("", None):
+            return None
+
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                return value
+
+        return value
+
+
+class PrettyJSON(base_formats.JSON):
+    """
+    Django import-export JSON exportini o'qishga qulay formatda chiqaradi.
+    """
+
+    def export_data(self, dataset, **kwargs):
+        return json.dumps(
+            dataset.dict,
+            ensure_ascii=False,
+            indent=2,
+            default=str,
+        )
+
+
+class PrettyImportExportModelAdmin(ImportExportModelAdmin):
+    """
+    Admin panelda faqat JSON import/export ishlatish uchun custom admin.
+    """
+
+    formats = [
+        PrettyJSON,
+    ]
+
+
+class DynamicModelResource(resources.ModelResource):
+    """
+    Har bir model fieldlarini avtomatik import/export qiladi.
+
+    - JSONField -> JSONWidget
+    - ForeignKey / OneToOne -> id orqali
+    - ManyToMany -> avtomatik kiritilmaydi
+    """
+
+    @classmethod
+    def field_from_django_field(cls, field_name, django_field, readonly):
+        if isinstance(django_field, models.JSONField):
+            return Field(
+                attribute=field_name,
+                column_name=field_name,
+                widget=JSONWidget(),
+                readonly=readonly,
+            )
+
+        if isinstance(django_field, (models.ForeignKey, models.OneToOneField)):
+            return Field(
+                attribute=field_name,
+                column_name=field_name,
+                widget=ForeignKeyWidget(django_field.remote_field.model, "id"),
+                readonly=readonly,
+            )
+
+        return super().field_from_django_field(field_name, django_field, readonly)
+
+
+class SafeDynamicModelResource(DynamicModelResource):
+    class Meta:
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class UserResource(SafeDynamicModelResource):
+    class Meta:
+        model = User
+        import_id_fields = ("id",)
+        exclude = (
+            "password",
+            "groups",
+            "user_permissions",
+            "last_login",
+        )
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class StudentProfileResource(SafeDynamicModelResource):
+    class Meta:
+        model = StudentProfile
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class BranchResource(SafeDynamicModelResource):
+    class Meta:
+        model = Branch
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class CoinProductResource(SafeDynamicModelResource):
+    class Meta:
+        model = CoinProduct
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class MentorResource(SafeDynamicModelResource):
+    class Meta:
+        model = Mentor
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class MonthHeroResource(SafeDynamicModelResource):
+    class Meta:
+        model = MonthHero
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class NewsResource(SafeDynamicModelResource):
+    class Meta:
+        model = News
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class StudentPaymentHistoryResource(SafeDynamicModelResource):
+    class Meta:
+        model = StudentPaymentHistory
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class PortfolioResource(SafeDynamicModelResource):
+    class Meta:
+        model = Portfolio
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class CourseResource(SafeDynamicModelResource):
+    class Meta:
+        model = Course
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class ModuleResource(SafeDynamicModelResource):
+    class Meta:
+        model = Module
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class LessonResource(SafeDynamicModelResource):
+    class Meta:
+        model = Lesson
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class QuestionResource(SafeDynamicModelResource):
+    lesson = Field(
+        column_name="lesson",
+        attribute="lesson",
+        widget=ForeignKeyWidget(Lesson, "id"),
+    )
+
+    text = Field(
+        column_name="text",
+        attribute="text",
+        widget=JSONWidget(),
+    )
+
+    images = Field(
+        column_name="images",
+        attribute="images",
+        widget=JSONWidget(),
+    )
+
+    options = Field(
+        column_name="options",
+        attribute="options",
+        widget=JSONWidget(),
+    )
+
+    class Meta:
+        model = Question
+        fields = (
+            "id",
+            "lesson",
+            "text",
+            "images",
+            "options",
+            "correct_option",
+            "created_at",
+        )
+        export_order = (
+            "id",
+            "lesson",
+            "text",
+            "images",
+            "options",
+            "correct_option",
+            "created_at",
+        )
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class TestSessionResource(SafeDynamicModelResource):
+    class Meta:
+        model = TestSession
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class TestSessionQuestionResource(SafeDynamicModelResource):
+    class Meta:
+        model = TestSessionQuestion
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class TestSessionAnswerResource(SafeDynamicModelResource):
+    class Meta:
+        model = TestSessionAnswer
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
