@@ -1,25 +1,11 @@
 from app.models.auth import StudentProfile
+from app.services.profile_image_service import build_profile_image_url
 from app.services.student.external_student_api import PDPStudentAPIClient, PDPStudentAPIError
 from app.services.student.student_dashboard_service import sync_student_dashboard_data
 
 
 def build_absolute_photo_url(user, request=None):
-    """
-    User photo uchun absolute URL qaytaradi.
-    Agar request bo'lsa: http://127.0.0.1:8000/media/...
-    Agar request bo'lmasa: /media/...
-    """
-    profile = getattr(user, "student_profile", None)
-    if profile and profile.avatar_url:
-        return profile.avatar_url
-
-    if not user.photo:
-        return None
-
-    if request:
-        return request.build_absolute_uri(user.photo.url)
-
-    return user.photo.url
+    return build_profile_image_url(user, request=request)
 
 
 def build_avatar(user):

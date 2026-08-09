@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from app.services import enter_password_via_external_api
 from app.services.auth_external_api import PDPAPIError
+from app.services.profile_image_service import build_profile_image_url
 
 
 class StudentProfileSerializer(serializers.Serializer):
@@ -18,19 +19,10 @@ class StudentProfileSerializer(serializers.Serializer):
         return obj.full_name
 
     def get_image(self, obj):
-        request = self.context.get("request")
-        profile = getattr(obj, "student_profile", None)
-
-        if profile and profile.avatar_url:
-            return profile.avatar_url
-
-        if not obj.photo:
-            return None
-
-        if request:
-            return request.build_absolute_uri(obj.photo.url)
-
-        return obj.photo.url
+        return build_profile_image_url(
+            obj,
+            request=self.context.get("request"),
+        )
 
     def get_avatar(self, obj):
         first = obj.first_name[:1].upper() if obj.first_name else ""
@@ -71,6 +63,12 @@ class StudentProfileImageUpdateSerializer(serializers.Serializer):
     def update(self, instance, validated_data):
         instance.photo = validated_data["image"]
         instance.save(update_fields=["photo"])
+
+        profile = getattr(instance, "student_profile", None)
+        if profile and profile.avatar_url:
+            profile.avatar_url = ""
+            profile.save(update_fields=["avatar_url", "updated_at"])
+
         return instance
 
 

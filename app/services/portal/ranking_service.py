@@ -5,6 +5,7 @@ from django.db.models import Count, Prefetch, Q
 from app.models.auth import StudentProfile
 from app.models.mentors import Mentor
 from app.models.question import Course, Lesson, Module
+from app.services.profile_image_service import build_profile_image_url
 
 
 UZ_MONTHS_SHORT = [
@@ -14,14 +15,7 @@ UZ_MONTHS_SHORT = [
 
 
 def build_absolute_photo_url(user, request=None):
-    profile = getattr(user, "student_profile", None)
-    if profile and profile.avatar_url:
-        return profile.avatar_url
-    if not user.photo:
-        return None
-    if request:
-        return request.build_absolute_uri(user.photo.url)
-    return user.photo.url
+    return build_profile_image_url(user, request=request)
 
 
 def resolve_mentor_name(branch_id, course_name: str | None) -> str:
