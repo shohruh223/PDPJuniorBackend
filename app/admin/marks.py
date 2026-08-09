@@ -1,10 +1,11 @@
 from django.contrib import admin
 
+from app.admin.mixins import RowActionsAdminMixin
 from app.models import StudentMark
 
 
 @admin.register(StudentMark)
-class StudentMarkAdmin(admin.ModelAdmin):
+class StudentMarkAdmin(RowActionsAdminMixin, admin.ModelAdmin):
     list_display = (
         "student_profile",
         "course",

@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
+from app.admin.mixins import RowActionsAdminMixin
 from app.admin.resources import BranchResource, PrettyImportExportModelAdmin
 from app.admin.media import MultipleFileField, save_uploaded_file
 from app.models.branch import Branch
@@ -87,7 +88,7 @@ class BranchAdminForm(forms.ModelForm):
 
 
 @admin.register(Branch)
-class BranchAdmin(PrettyImportExportModelAdmin):
+class BranchAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = BranchResource
     form = BranchAdminForm
 
@@ -108,6 +109,7 @@ class BranchAdmin(PrettyImportExportModelAdmin):
         "phone",
         "is_opened",
         "is_active",
+        "row_actions",
     )
     list_filter = (
         "is_opened",

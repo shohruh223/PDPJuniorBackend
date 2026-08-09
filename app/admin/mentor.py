@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from app.admin.media import save_uploaded_file
+from app.admin.mixins import RowActionsAdminMixin
 from app.admin.resources import PrettyImportExportModelAdmin, MentorResource
 from app.models import Mentor
 
@@ -78,7 +79,7 @@ class MentorAdminForm(forms.ModelForm):
 
 
 @admin.register(Mentor)
-class MentorAdmin(PrettyImportExportModelAdmin):
+class MentorAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = MentorResource
     form = MentorAdminForm
 
@@ -104,6 +105,7 @@ class MentorAdmin(PrettyImportExportModelAdmin):
         "exp",
         "students_count",
         "is_active",
+        "row_actions",
     )
     list_filter = (
         "role",

@@ -1,6 +1,7 @@
 from django import forms
 from django.contrib import admin
 from app.admin.media import save_uploaded_file
+from app.admin.mixins import RowActionsAdminMixin
 from app.admin.resources import PrettyImportExportModelAdmin, PortfolioResource
 from app.models.portfolio import Portfolio
 
@@ -48,7 +49,7 @@ class PortfolioAdminForm(forms.ModelForm):
 
 
 @admin.register(Portfolio)
-class PortfolioAdmin(PrettyImportExportModelAdmin):
+class PortfolioAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = PortfolioResource
     form = PortfolioAdminForm
 
@@ -66,6 +67,7 @@ class PortfolioAdmin(PrettyImportExportModelAdmin):
         "url",
         "desc",
         "is_active",
+        "row_actions",
     )
     list_filter = ("is_active",)
     search_fields = (

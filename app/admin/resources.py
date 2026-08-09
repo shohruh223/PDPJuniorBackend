@@ -7,6 +7,7 @@ from import_export.fields import Field
 from import_export.formats import base_formats
 from import_export.widgets import ForeignKeyWidget, Widget
 
+from app.admin.mixins import RowActionsAdminMixin
 from app.models.auth import User, StudentProfile
 from app.models.branch import Branch
 from app.models.coin import CoinProduct
@@ -79,6 +80,14 @@ class PrettyImportExportModelAdmin(ImportExportModelAdmin):
     formats = [
         PrettyJSON,
     ]
+
+    row_actions = RowActionsAdminMixin.row_actions
+
+    def get_list_display(self, request):
+        list_display = tuple(super().get_list_display(request))
+        if "row_actions" not in list_display:
+            list_display += ("row_actions",)
+        return list_display
 
 
 class DynamicModelResource(resources.ModelResource):

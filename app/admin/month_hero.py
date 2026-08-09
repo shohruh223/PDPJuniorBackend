@@ -70,6 +70,7 @@ class MonthHeroAdmin(PrettyImportExportModelAdmin):
         "student_course",
         "student_branch",
         "student_score",
+        "points",
         "period",
         "is_active",
         "created_at",
@@ -85,8 +86,6 @@ class MonthHeroAdmin(PrettyImportExportModelAdmin):
     search_fields = (
         "student_profile__user__first_name",
         "student_profile__user__last_name",
-        "student_profile__user__full_name",
-        "student_profile__user__phone",
         "student_profile__user__phone_number",
         "student_profile__group_name",
         "student_profile__course__name",
@@ -109,12 +108,14 @@ class MonthHeroAdmin(PrettyImportExportModelAdmin):
             return (
                 "student_profile",
                 "branch",
+                "points",
                 "is_active",
             )
 
         return (
             "student_profile",
             "branch",
+            "points",
             "is_active",
             "period",
             "created_at",

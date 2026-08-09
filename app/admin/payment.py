@@ -44,21 +44,10 @@ class StudentPaymentHistoryAdmin(PrettyImportExportModelAdmin):
         "student_profile__user__last_name",
     ]
 
+    autocomplete_fields = ["student_profile"]
+
     readonly_fields = [
         "id",
-        "student_profile",
-        "external_id",
-        "invoice_number",
-        "amount",
-        "aim",
-        "time_table_name",
-        "group_name",
-        "payment_type",
-        "date",
-        "created_date",
-        "cashier",
-        "canceled",
-        "raw_data",
         "created_at",
         "updated_at",
     ]
