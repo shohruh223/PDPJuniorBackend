@@ -69,7 +69,7 @@ class DocumentedTokenRefreshView(TokenRefreshView):
 
 schema_view = get_schema_view(
     openapi.Info(
-        title="Imtihonga tayyorlov API",
+        title="PDP Junior API",
         default_version='v1',
         description=(
             "PDP Junior backend endpointlari.\n\n"
