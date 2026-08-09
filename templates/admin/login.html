@@ -1,0 +1,83 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block bodyclass %}{{ block.super }} login pdp-login{% endblock %}
+{% block nav-sidebar %}{% endblock %}
+{% block navigation %}{% endblock %}
+{% block nav-global %}{% endblock %}
+{% block usertools %}{% endblock %}
+{% block breadcrumbs %}{% endblock %}
+
+{% block content %}
+<div class="pdp-login-shell">
+    <section class="pdp-login-visual">
+        <span class="pdp-login-blob pdp-login-blob--one"></span>
+        <span class="pdp-login-blob pdp-login-blob--two"></span>
+        <div class="pdp-login-visual__content">
+            <span class="pdp-login-badge">PDP Junior Admin</span>
+            <h1>Smart kelajakni birgalikda boshqaramiz</h1>
+            <p>O‘quvchilar, kurslar, darslar va natijalar — barchasi yagona xavfsiz boshqaruv panelida.</p>
+            <div class="pdp-login-features">
+                <span><b>19</b><small>Boshqaruv moduli</small></span>
+                <span><b>24/7</b><small>Qulay boshqaruv</small></span>
+            </div>
+        </div>
+        <img class="pdp-login-rocket" src="{% static 'app/admin/img/hero-rocket.svg' %}" alt="">
+    </section>
+
+    <section class="pdp-login-form">
+        <div class="pdp-login-form__heading">
+            <span class="pdp-eyebrow">Xush kelibsiz</span>
+            <h2>Boshqaruv paneliga kirish</h2>
+            <p>Davom etish uchun login ma’lumotlaringizni kiriting.</p>
+        </div>
+
+        {% if form.errors and not form.non_field_errors %}
+            <p class="errornote">{% translate "Please correct the errors below." %}</p>
+        {% endif %}
+        {% if form.non_field_errors %}
+            {% for error in form.non_field_errors %}
+                <p class="errornote">{{ error }}</p>
+            {% endfor %}
+        {% endif %}
+
+        <form action="{{ app_path }}" method="post" id="login-form">
+            {% csrf_token %}
+            <div class="pdp-login-field">
+                <label for="{{ form.username.id_for_label }}">Telefon raqami</label>
+                <div class="pdp-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.8 19.8 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.69 2.8a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.33 1.85.56 2.81.69A2 2 0 0 1 22 16.92Z"/>
+                    </svg>
+                    {{ form.username }}
+                </div>
+                {{ form.username.errors }}
+            </div>
+            <div class="pdp-login-field">
+                <label for="{{ form.password.id_for_label }}">{% translate "Password:" %}</label>
+                <div class="pdp-login-input">
+                    <svg viewBox="0 0 24 24" aria-hidden="true">
+                        <rect x="3" y="11" width="18" height="11" rx="2"/>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                    {{ form.password }}
+                </div>
+                {{ form.password.errors }}
+                <input type="hidden" name="next" value="{{ next }}">
+            </div>
+            {% url 'admin_password_reset' as password_reset_url %}
+            {% if password_reset_url %}
+                <a class="pdp-forgot-link" href="{{ password_reset_url }}">{% translate "Forgotten your password or username?" %}</a>
+            {% endif %}
+            <button class="pdp-login-submit" type="submit">
+                <span>Kirish</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="m9 18 6-6-6-6"/>
+                </svg>
+            </button>
+        </form>
+    </section>
+</div>
+{% endblock %}
+
+{% block footer %}{% endblock %}

@@ -1,0 +1,84 @@
+{% load i18n static %}
+<button class="sticky toggle-nav-sidebar" id="toggle-nav-sidebar" aria-label="{% translate 'Toggle navigation' %}"></button>
+<nav class="sticky pdp-sidebar" id="nav-sidebar" aria-label="{% translate 'Sidebar' %}">
+    <a class="pdp-sidebar__brand" href="{% url 'admin:index' %}">
+        <img src="{% static 'app/admin/img/pdp-junior-logo-on-dark.png' %}" alt="PDP Junior">
+        <span>Admin panel</span>
+    </a>
+
+    <div class="pdp-sidebar__scroll">
+        <a class="pdp-sidebar__home{% if request.path == '/admin/' %} active{% endif %}" href="{% url 'admin:index' %}">
+            <span class="pdp-sidebar__icon">
+                <svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"/><path d="M5 10v10h14V10M9 20v-6h6v6"/></svg>
+            </span>
+            <span>Bosh sahifa</span>
+        </a>
+
+        <p class="pdp-sidebar__section">Boshqaruv modullari</p>
+        <label class="pdp-sidebar__search" for="nav-filter">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input type="search" id="nav-filter"
+                   placeholder="Modulni qidiring..."
+                   aria-label="{% translate 'Filter navigation items' %}">
+        </label>
+
+        <div class="pdp-sidebar__apps">
+            {% for app in available_apps %}
+                <div class="pdp-sidebar__app app-{{ app.app_label }}">
+                    {% for model in app.models %}
+                        {% with model_name=model.object_name|lower %}
+                        {% if model.admin_url %}
+                            <div class="pdp-sidebar__row model-{{ model_name }}{% if model.admin_url in request.path|urlencode %} active current-model{% endif %}">
+                                <a class="pdp-sidebar__item"
+                                   href="{{ model.admin_url }}"{% if model.admin_url in request.path|urlencode %} aria-current="page"{% endif %}>
+                                    <span class="pdp-sidebar__icon">
+                                    {% if model_name == "user" or model_name == "studentprofile" %}
+                                        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+                                    {% elif model_name == "course" or model_name == "module" or model_name == "lesson" or model_name == "question" %}
+                                        <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H11v17H6.5A2.5 2.5 0 0 0 4 22V5.5Z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H13v17h4.5A2.5 2.5 0 0 1 20 22V5.5Z"/></svg>
+                                    {% elif model_name == "coinproduct" or model_name == "coinorder" %}
+                                        <svg viewBox="0 0 24 24"><path d="M6 7h14l-1 9H7L5 3H2"/><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/></svg>
+                                    {% elif model_name == "studentpaymenthistory" %}
+                                        <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h3"/></svg>
+                                    {% elif model_name == "testsession" or model_name == "testsessionquestion" or model_name == "testsessionanswer" or model_name == "studentmark" %}
+                                        <svg viewBox="0 0 24 24"><path d="M9 5h10M9 12h10M9 19h10"/><path d="m3 5 1 1 2-2M3 12l1 1 2-2M3 19l1 1 2-2"/></svg>
+                                    {% elif model_name == "news" or model_name == "gallerypost" or model_name == "portfolio" %}
+                                        <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/></svg>
+                                    {% elif model_name == "branch" or model_name == "mentor" %}
+                                        <svg viewBox="0 0 24 24"><path d="M12 21s7-5.3 7-12a7 7 0 1 0-14 0c0 6.7 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/></svg>
+                                    {% else %}
+                                        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>
+                                    {% endif %}
+                                    </span>
+                                    <span class="pdp-sidebar__label">{{ model.name }}</span>
+                                </a>
+                                {% if model.add_url %}
+                                    <a class="pdp-sidebar__add" href="{{ model.add_url }}"
+                                       title="{{ model.name }} qo‘shish" aria-label="{{ model.name }} qo‘shish">
+                                        <svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+                                    </a>
+                                {% endif %}
+                                <svg class="pdp-sidebar__arrow" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+                            </div>
+                        {% endif %}
+                        {% endwith %}
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="pdp-sidebar__user">
+        <span class="pdp-sidebar__avatar">{{ request.user.phone_number|slice:"-2:" }}</span>
+        <span class="pdp-sidebar__user-copy">
+            <strong>{{ request.user.full_name|default:request.user.phone_number }}</strong>
+            <small>Administrator</small>
+        </span>
+        <form method="post" action="{% url 'admin:logout' %}">
+            {% csrf_token %}
+            <button type="submit" title="Chiqish" aria-label="Chiqish">
+                <svg viewBox="0 0 24 24"><path d="M10 17l5-5-5-5M15 12H3"/><path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/></svg>
+            </button>
+        </form>
+    </div>
+</nav>
