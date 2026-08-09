@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.urls import path
 
 from app.admin.media import MultipleFileField, save_uploaded_file
+from app.admin.mixins import RowActionsAdminMixin
 from app.admin.resources import (
     PrettyImportExportModelAdmin,
     CourseResource,
@@ -246,7 +247,7 @@ class QuestionAdminForm(forms.ModelForm):
 
 
 @admin.register(Question)
-class QuestionAdmin(PrettyImportExportModelAdmin):
+class QuestionAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = QuestionResource
     form = QuestionAdminForm
 
@@ -271,6 +272,7 @@ class QuestionAdmin(PrettyImportExportModelAdmin):
         "lesson",
         "correct_option",
         "created_at",
+        "row_actions",
     )
     list_filter = (
         "correct_option",
@@ -351,19 +353,20 @@ class QuestionAdmin(PrettyImportExportModelAdmin):
 
 
 @admin.register(Course)
-class CourseAdmin(PrettyImportExportModelAdmin):
+class CourseAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = CourseResource
 
     list_display = (
         "id",
         "name",
+        "row_actions",
     )
     search_fields = ("name",)
     ordering = ("name",)
 
 
 @admin.register(Module)
-class ModuleAdmin(PrettyImportExportModelAdmin):
+class ModuleAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = ModuleResource
 
     list_display = (
@@ -371,6 +374,7 @@ class ModuleAdmin(PrettyImportExportModelAdmin):
         "course",
         "order",
         "name",
+        "row_actions",
     )
     list_filter = ("course",)
     search_fields = (
@@ -425,7 +429,7 @@ class LessonAdminForm(forms.ModelForm):
 
 
 @admin.register(Lesson)
-class LessonAdmin(PrettyImportExportModelAdmin):
+class LessonAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = LessonResource
     form = LessonAdminForm
 
@@ -435,6 +439,7 @@ class LessonAdmin(PrettyImportExportModelAdmin):
         "module",
         "order",
         "name",
+        "row_actions",
     )
     list_filter = (
         "course",

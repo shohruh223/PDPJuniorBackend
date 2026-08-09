@@ -1,4 +1,5 @@
 from django.contrib import admin
+from app.admin.mixins import RowActionsAdminMixin
 from app.admin.resources import PrettyImportExportModelAdmin, CoinProductResource
 from app.models.coin import CoinProduct, CoinOrder
 
@@ -14,7 +15,7 @@ class CoinProductAdmin(PrettyImportExportModelAdmin):
 
 
 @admin.register(CoinOrder)
-class CoinOrderAdmin(admin.ModelAdmin):
+class CoinOrderAdmin(RowActionsAdminMixin, admin.ModelAdmin):
     list_display = ["product_title", "student_profile", "price", "status", "created_at"]
     list_filter = ["status", "created_at"]
     search_fields = ["product_title"]

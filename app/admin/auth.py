@@ -1,6 +1,5 @@
 from django import forms
 from django.contrib import admin
-from django.contrib.auth.hashers import make_password
 
 from app.admin.resources import (
     PrettyImportExportModelAdmin,
@@ -27,11 +26,18 @@ class UserAdminForm(forms.ModelForm):
         fields = (
             "phone_number",
             "password",
+            "first_name",
+            "last_name",
+            "email",
+            "birth_date",
             "role",
             "photo",
             "preferred_language",
             "is_active",
             "is_staff",
+            "is_superuser",
+            "groups",
+            "user_permissions",
         )
 
     def save(self, commit=True):
@@ -40,10 +46,12 @@ class UserAdminForm(forms.ModelForm):
         password = self.cleaned_data.get("password")
 
         if password:
-            obj.password = make_password(password)
+            obj.set_password(password)
         elif obj.pk:
             old_obj = User.objects.get(pk=obj.pk)
             obj.password = old_obj.password
+        else:
+            obj.set_unusable_password()
 
         if commit:
             obj.save()
@@ -59,16 +67,24 @@ class UserAdmin(PrettyImportExportModelAdmin):
     fields = (
         "phone_number",
         "password",
+        "first_name",
+        "last_name",
+        "email",
+        "birth_date",
         "role",
         "photo",
         "preferred_language",
         "is_active",
         "is_staff",
+        "is_superuser",
+        "groups",
+        "user_permissions",
     )
 
     list_display = (
         "id",
         "phone_number",
+        "full_name_display",
         "role",
         "is_active",
         "is_staff",
@@ -81,8 +97,16 @@ class UserAdmin(PrettyImportExportModelAdmin):
     )
     search_fields = (
         "phone_number",
+        "first_name",
+        "last_name",
+        "email",
     )
     ordering = ("-created_at",)
+    filter_horizontal = ("groups", "user_permissions")
+
+    @admin.display(description="F.I.Sh.")
+    def full_name_display(self, obj):
+        return obj.full_name
 
 
 @admin.register(StudentProfile)
@@ -134,6 +158,8 @@ class StudentProfileAdmin(PrettyImportExportModelAdmin):
         "parent_phone",
         "address",
         "bio",
+        "avatar_url",
+        "streak_days",
         "external_id",
         "api_score",
         "local_test_score",
