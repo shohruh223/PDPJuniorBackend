@@ -6,6 +6,9 @@ from app.models import StudentMark
 
 @admin.register(StudentMark)
 class StudentMarkAdmin(RowActionsAdminMixin, admin.ModelAdmin):
+    def get_model_perms(self, request):
+        return {}
+
     list_display = (
         "student_profile",
         "course",

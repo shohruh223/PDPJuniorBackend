@@ -17,17 +17,12 @@ def question_to_frontend(question: Question, lang: str = "uz") -> dict:
         pick_lang_value((question.options or {}).get(key), lang)
         for key in option_keys
     ]
-    correct_index = 0
-    if question.correct_option in option_keys:
-        correct_index = option_keys.index(question.correct_option)
 
     return {
         "id": question.id,
         "text": pick_lang_value(question.text, lang),
         "answers": answers,
         "options": answers,
-        "correct_index": correct_index,
-        "correctIndex": correct_index,
     }
 
 
@@ -45,9 +40,9 @@ class LessonQuestionsAPIView(APIView):
             "Berilgan `lesson_id` bo‘yicha barcha savollarni eski frontend "
             "`lessons-data.js` kutadigan formatda qaytaradi. Login qiling, URL pathga "
             "dars ID sini qo‘ying va ixtiyoriy `lang=uz|ru|en` yuboring. Har bir savolda "
-            "`answers` va `options` bir xil tarjima qilingan variantlar ro‘yxati; "
-            "`correct_index` va `correctIndex` esa bir xil, noldan boshlanuvchi to‘g‘ri "
-            "javob indeksidir. Noma’lum til yuborilsa `uz` ishlatiladi."
+            "`answers` va `options` bir xil tarjima qilingan variantlar ro‘yxati. "
+            "To‘g‘ri javob xavfsizlik sabab frontendga yuborilmaydi. "
+            "Noma’lum til yuborilsa `uz` ishlatiladi."
         ),
         manual_parameters=[
             openapi.Parameter(
@@ -80,8 +75,6 @@ class LessonQuestionsAPIView(APIView):
                             "text": "Python ro‘yxati qanday yaratiladi?",
                             "answers": ["[]", "{}", "()"],
                             "options": ["[]", "{}", "()"],
-                            "correct_index": 0,
-                            "correctIndex": 0,
                         }],
                     },
                 }},
@@ -103,8 +96,24 @@ class LessonQuestionsAPIView(APIView):
             lang = "uz"
 
         try:
-            lesson = Lesson.objects.get(pk=lesson_id)
+            lesson = Lesson.objects.select_related("course").get(pk=lesson_id)
         except (Lesson.DoesNotExist, ValueError, TypeError):
+            return Response(
+                {"success": False, "message": "Dars topilmadi."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        profile = getattr(request.user, "student_profile", None)
+        student_course = profile.course if profile else None
+
+        if not student_course and profile:
+            course_name = profile.resolve_course_name_from_group()
+            if course_name:
+                student_course = lesson.course.__class__.objects.filter(
+                    name__iexact=course_name
+                ).first()
+
+        if not student_course or lesson.course_id != student_course.pk:
             return Response(
                 {"success": False, "message": "Dars topilmadi."},
                 status=status.HTTP_404_NOT_FOUND,

@@ -1,0 +1,140 @@
+{% extends "admin/change_list.html" %}
+{% load i18n static %}
+
+{% block bodyclass %}{{ block.super }} pdp-month-heroes{% endblock %}
+{% block content_title %}{% endblock %}
+{% block object-tools %}{% endblock %}
+{% block object-tools-items %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs pdp-catalog-breadcrumbs">
+    <a href="{% url 'admin:app_monthhero_changelist' %}">Oy qahramonlari</a>
+    {% if selected_period %}
+        <span>›</span>
+        <strong>{{ selected_month_name }} {{ selected_period.year }}</strong>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block search %}
+{% if selected_period %}
+<div class="pdp-hero-search-row">
+    <div class="pdp-hero-search-box">{{ block.super }}</div>
+    <nav class="pdp-hero-inline-filters" aria-label="Qahramonlarni filterlash">
+        <a class="pdp-hero-filter-button {% if not selected_course_id and not selected_branch_id %}is-selected{% endif %}" href="{{ all_heroes_url }}">
+            <span>★</span> Umumiy
+        </a>
+        <details class="pdp-hero-filter-dropdown {% if selected_course_id %}is-selected{% endif %}">
+            <summary><span>⌘</span> Kurs <i>⌄</i></summary>
+            <div class="pdp-hero-filter-menu">
+                <div class="pdp-hero-filter-menu__heading">
+                    <strong>Kursni tanlang</strong>
+                    <small>{{ hero_courses|length }} ta kurs</small>
+                </div>
+                {% for item in hero_courses %}
+                    <a class="{% if item.selected %}is-selected{% endif %}" href="{{ item.url }}">
+                        <span class="pdp-hero-filter-menu__icon">{{ item.object.name|slice:":1" }}</span>
+                        <span><strong>{{ item.object.name }}</strong><small>{{ item.total }} ta qahramon</small></span>
+                        {% if item.selected %}<i>✓</i>{% else %}<i>→</i>{% endif %}
+                    </a>
+                {% endfor %}
+            </div>
+        </details>
+        <details class="pdp-hero-filter-dropdown {% if selected_branch_id %}is-selected{% endif %}">
+            <summary><span>⌂</span> Filial <i>⌄</i></summary>
+            <div class="pdp-hero-filter-menu pdp-hero-filter-menu--right">
+                <div class="pdp-hero-filter-menu__heading">
+                    <strong>Filialni tanlang</strong>
+                    <small>{{ hero_branches|length }} ta filial</small>
+                </div>
+                {% for item in hero_branches %}
+                    <a class="{% if item.selected %}is-selected{% endif %}" href="{{ item.url }}">
+                        <span class="pdp-hero-filter-menu__icon">⌂</span>
+                        <span><strong>{{ item.object.name }}</strong><small>{{ item.total }} ta qahramon</small></span>
+                        {% if item.selected %}<i>✓</i>{% else %}<i>→</i>{% endif %}
+                    </a>
+                {% endfor %}
+            </div>
+        </details>
+    </nav>
+    <div class="pdp-hero-inline-actions">
+        {% if has_import_permission %}
+            <a class="pdp-hero-action-button pdp-hero-action-button--import" href="{% url 'admin:app_monthhero_import' %}">
+                <span>↓</span> Import
+            </a>
+        {% endif %}
+        {% if has_export_permission %}
+            <a class="pdp-hero-action-button pdp-hero-action-button--export" href="{% url 'admin:app_monthhero_export' %}">
+                <span>↑</span> Export
+            </a>
+        {% endif %}
+        {% if has_add_permission %}
+            <a class="pdp-hero-action-button pdp-hero-action-button--add" href="{% url 'admin:app_monthhero_add' %}">
+                <span>+</span> Oy qahramonini qo‘shish
+            </a>
+        {% endif %}
+    </div>
+</div>
+{% else %}
+    {{ block.super }}
+{% endif %}
+{% endblock %}
+
+{% block content %}
+{% if selected_period %}
+    <section class="pdp-hero-month">
+        <header class="pdp-hero-month__banner">
+            <div class="pdp-hero-month__glow pdp-hero-month__glow--one"></div>
+            <div class="pdp-hero-month__glow pdp-hero-month__glow--two"></div>
+            <div class="pdp-hero-month__intro">
+                <span class="pdp-hero-month__trophy">★</span>
+                <div>
+                    <span class="pdp-hero-month__eyebrow">PDP Junior · Oy qahramonlari</span>
+                    <h1>{{ selected_month_name }} <span>{{ selected_period.year }}</span></h1>
+                    <p>Eng faol va yuqori natija ko‘rsatgan studentlar jamlanmasi</p>
+                </div>
+            </div>
+            <div class="pdp-hero-month__summary">
+                <div class="pdp-hero-month__stat">
+                    <span>{{ selected_month_total|stringformat:"02d" }}</span>
+                    <small>Jami qahramon</small>
+                </div>
+            </div>
+        </header>
+
+    </section>
+    {{ block.super }}
+{% else %}
+    <div id="content-main" class="pdp-catalog pdp-month-catalog">
+        <header class="pdp-catalog__header">
+            <div>
+                <span class="pdp-eyebrow">Yillik ko‘rinish</span>
+                <h1>{{ hero_catalog_year }} yil oy qahramonlari</h1>
+                <p>Oyni tanlang va shu oy qahramonlari ro‘yxatini ko‘ring.</p>
+            </div>
+            <div class="pdp-catalog__header-actions">
+                {% if has_add_permission %}
+                    <a class="pdp-catalog__add" href="{% url 'admin:app_monthhero_add' %}">+ Qahramon qo‘shish</a>
+                {% endif %}
+            </div>
+        </header>
+
+        <div class="pdp-catalog__grid pdp-month-grid">
+            {% for month in hero_months %}
+                <article class="pdp-catalog-card pdp-month-card">
+                    <a class="pdp-catalog-card__main" href="{{ month.url }}">
+                        <span class="pdp-catalog-card__number">{{ month.number|stringformat:"02d" }}</span>
+                        <span class="pdp-catalog-card__icon">{{ month.name|slice:":1" }}</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>{{ hero_catalog_year }} yil</small>
+                            <strong>{{ month.name }}</strong>
+                            <small>{{ month.total }} ta qahramon</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                </article>
+            {% endfor %}
+        </div>
+    </div>
+{% endif %}
+{% endblock %}
