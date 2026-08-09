@@ -1,0 +1,43 @@
+<svg width="140" height="140" viewBox="0 0 140 140" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <linearGradient id="body" x1="34" y1="22" x2="103" y2="108" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#F9FDFF"/>
+    <stop offset="1" stop-color="#DDF8FF"/>
+  </linearGradient>
+  <linearGradient id="nose" x1="70" y1="10" x2="70" y2="42" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#FF8756"/>
+    <stop offset="1" stop-color="#FF5B6E"/>
+  </linearGradient>
+  <linearGradient id="wing" x1="21" y1="62" x2="60" y2="98" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#00E0EF"/>
+    <stop offset="1" stop-color="#008897"/>
+  </linearGradient>
+  <linearGradient id="wing2" x1="80" y1="62" x2="119" y2="98" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#00C787"/>
+    <stop offset="1" stop-color="#008F70"/>
+  </linearGradient>
+  <radialGradient id="window" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(70 58) rotate(90) scale(15)">
+    <stop stop-color="#9FE8FF"/>
+    <stop offset="1" stop-color="#007C9C"/>
+  </radialGradient>
+  <linearGradient id="flame" x1="70" y1="94" x2="70" y2="135" gradientUnits="userSpaceOnUse">
+    <stop stop-color="#FFF59D"/>
+    <stop offset="0.45" stop-color="#FFB703"/>
+    <stop offset="1" stop-color="#FF5A3D"/>
+  </linearGradient>
+  <filter id="shadow" x="0" y="0" width="140" height="140" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+    <feDropShadow dx="0" dy="10" stdDeviation="10" flood-color="#002930" flood-opacity="0.22"/>
+  </filter>
+</defs>
+<g filter="url(#shadow)">
+  <path d="M70 11C87 24 97 45 98 68C99 90 89 107 70 121C51 107 41 90 42 68C43 45 53 24 70 11Z" fill="url(#body)" stroke="#00BBD0" stroke-width="3"/>
+  <path d="M70 12C77 18 83 27 87 36H53C57 27 63 18 70 12Z" fill="url(#nose)"/>
+  <circle cx="70" cy="58" r="14.5" fill="url(#window)" stroke="#E8FDFF" stroke-width="4"/>
+  <path d="M42 67L22 90C19 94 23 101 29 99L52 92L42 67Z" fill="url(#wing)"/>
+  <path d="M98 67L118 90C121 94 117 101 111 99L88 92L98 67Z" fill="url(#wing2)"/>
+  <path d="M56 102L46 118C43 123 49 129 55 126L64 115L56 102Z" fill="#00C787"/>
+  <path d="M84 102L94 118C97 123 91 129 85 126L76 115L84 102Z" fill="#00E0EF"/>
+  <path d="M70 95C78 104 82 118 70 133C58 118 62 104 70 95Z" fill="url(#flame)"/>
+  <path d="M70 103C74 110 75 118 70 124C65 118 66 110 70 103Z" fill="#FFF5D6" opacity="0.94"/>
+</g>
+</svg>
