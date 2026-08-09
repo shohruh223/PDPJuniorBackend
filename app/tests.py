@@ -1,7 +1,11 @@
+import io
 import json
+import tempfile
 from unittest.mock import MagicMock, patch
 
+from PIL import Image
 from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 from rest_framework.test import APIClient
@@ -295,6 +299,7 @@ class ShopPurchaseTests(TestCase):
             stock=1,
         )
 
+    @override_settings(TELEGRAM_BOT_TOKEN="")
     def test_purchase_deducts_balance_and_saves_order_snapshot(self):
         with self.captureOnCommitCallbacks(execute=True):
             order, error = purchase_product(
@@ -366,3 +371,48 @@ class ShopPurchaseTests(TestCase):
         order.refresh_from_db()
         self.assertIsNotNone(order.telegram_sent_at)
         self.assertEqual(order.telegram_error, "")
+
+
+class ProfileImageUpdateTests(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        course = Course.objects.create(name="Python")
+        cls.user = get_user_model().objects.create_user(
+            phone_number="+998907776655",
+            role="student",
+            first_name="Rasm",
+            last_name="Test",
+        )
+        cls.profile = StudentProfile.objects.create(
+            user=cls.user,
+            course=course,
+            group_name="P-20",
+            avatar_url="static/img/avatars/old.webp",
+        )
+
+    def test_uploaded_photo_replaces_legacy_avatar_url(self):
+        image_buffer = io.BytesIO()
+        Image.new("RGB", (2, 2), color="cyan").save(image_buffer, format="PNG")
+        uploaded_image = SimpleUploadedFile(
+            "profile.png",
+            image_buffer.getvalue(),
+            content_type="image/png",
+        )
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+
+        with tempfile.TemporaryDirectory() as media_root:
+            with override_settings(MEDIA_ROOT=media_root):
+                response = client.patch(
+                    "/api/student/profile/image/",
+                    {"image": uploaded_image},
+                    format="multipart",
+                )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("/media/users/profile", response.json()["data"]["image"])
+
+        self.profile.refresh_from_db()
+        self.user.refresh_from_db()
+        self.assertEqual(self.profile.avatar_url, "")
+        self.assertTrue(self.user.photo.name.startswith("users/profile"))

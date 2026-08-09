@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from app.models.month_hero import MonthHero
+from app.services.profile_image_service import build_profile_image_url
 
 
 MONTH_NAMES = {
@@ -107,16 +108,10 @@ class MonthHeroSerializer(serializers.ModelSerializer):
         return MONTH_NAMES.get(obj.period.month)
 
     def get_avatar(self, obj):
-        request = self.context.get("request")
-        photo = obj.student_profile.user.photo
-
-        if not photo:
-            return None
-
-        if request:
-            return request.build_absolute_uri(photo.url)
-
-        return photo.url
+        return build_profile_image_url(
+            obj.student_profile.user,
+            request=self.context.get("request"),
+        )
 
     def get_rank(self, obj):
         ranks = self.context.get("ranks", {})

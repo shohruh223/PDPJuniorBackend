@@ -12,6 +12,7 @@ from app.models import Course, StudentMark
 from app.models.auth import StudentProfile
 from app.permissions import IsStudentUserRole
 from app.serializers.marks import MarkRecordSerializer, MarksCourseSerializer
+from app.services.profile_image_service import build_profile_image_url
 
 
 mark_record_schema = openapi.Schema(
@@ -256,9 +257,7 @@ class StudentMarksAPIView(APIView):
 
         student_payload = []
         for student in students:
-            avatar = student.avatar_url or None
-            if not avatar and student.user.photo:
-                avatar = request.build_absolute_uri(student.user.photo.url)
+            avatar = build_profile_image_url(student.user, request=request)
             student_payload.append(
                 {
                     "id": str(student.id),
