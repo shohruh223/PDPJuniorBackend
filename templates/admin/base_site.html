@@ -1,5 +1,5 @@
 {% extends "admin/base.html" %}
-{% load i18n static %}
+{% load i18n static shop_notifications %}
 
 {% block title %}{{ title }} | PDP Junior Admin{% endblock %}
 
@@ -44,7 +44,46 @@
 {% endblock %}
 
 {% block nav-global %}
+{% shop_order_notifications request.user as shop_notice %}
 <div class="pdp-nav-actions">
+    {% if request.user.is_staff %}
+    <details class="pdp-shop-notifications">
+        <summary aria-label="Do‘kon buyurtmalari" title="Do‘kon buyurtmalari">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/>
+            </svg>
+            {% if shop_notice.unread_count %}
+                <span>{{ shop_notice.unread_count }}</span>
+            {% endif %}
+        </summary>
+        <div class="pdp-shop-notifications__menu">
+            <header>
+                <div>
+                    <strong>Yangi xaridlar</strong>
+                    <small>Coin do‘koni bildirishnomalari</small>
+                </div>
+                {% if shop_notice.unread_count %}
+                    <span>{{ shop_notice.unread_count }} yangi</span>
+                {% endif %}
+            </header>
+            <div class="pdp-shop-notifications__list">
+                {% for order in shop_notice.orders %}
+                    <a class="{% if not order.is_admin_read %}is-unread{% endif %}" href="{% url 'admin:app_coinorder_change' order.pk %}">
+                        <span class="pdp-shop-notifications__icon">{{ order.product.emoji|default:"◆" }}</span>
+                        <span>
+                            <strong>{{ order.student_name|default:order.student_profile }}</strong>
+                            <small>{{ order.branch_name|default:"Filialsiz" }} · {{ order.product_title }}</small>
+                            <i>{{ order.price }} coin · {{ order.created_at|date:"d.m.Y H:i" }}</i>
+                        </span>
+                        {% if not order.is_admin_read %}<b></b>{% endif %}
+                    </a>
+                {% empty %}
+                    <p>Hozircha yangi xaridlar yo‘q.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </details>
+    {% endif %}
     <a class="pdp-site-link" href="/" target="_blank" rel="noopener">
         <span>Saytni ko‘rish</span>
         <svg viewBox="0 0 24 24" aria-hidden="true">

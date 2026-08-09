@@ -7,6 +7,8 @@
 {% block nav-global %}{% endblock %}
 {% block usertools %}{% endblock %}
 {% block breadcrumbs %}{% endblock %}
+{% block content_title %}{% endblock %}
+{% block content_subtitle %}{% endblock %}
 
 {% block content %}
 <div class="pdp-login-shell">
@@ -27,6 +29,8 @@
 
     <section class="pdp-login-form">
         <div class="pdp-login-form__heading">
+            <img class="pdp-login-form__logo pdp-login-form__logo--light" src="{% static 'app/admin/img/pdp-junior-logo.png' %}" alt="PDP Junior">
+            <img class="pdp-login-form__logo pdp-login-form__logo--dark" src="{% static 'app/admin/img/pdp-junior-logo-on-dark.png' %}" alt="PDP Junior">
             <span class="pdp-eyebrow">Xush kelibsiz</span>
             <h2>Boshqaruv paneliga kirish</h2>
             <p>Davom etish uchun login ma’lumotlaringizni kiriting.</p>
@@ -63,7 +67,9 @@
                     {{ form.password }}
                 </div>
                 {{ form.password.errors }}
-                <input type="hidden" name="next" value="{{ next }}">
+                {% url 'admin:app_lesson_changelist' as lesson_admin_url %}
+                <input type="hidden" name="next"
+                       value="{% if next and next != '/admin/' %}{{ next }}{% else %}{{ lesson_admin_url }}{% endif %}">
             </div>
             {% url 'admin_password_reset' as password_reset_url %}
             {% if password_reset_url %}

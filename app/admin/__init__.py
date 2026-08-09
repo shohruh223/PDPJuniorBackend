@@ -7,7 +7,6 @@ from .coin import CoinProductAdmin, CoinOrderAdmin
 from .gallery import GalleryPostAdmin
 from .payment import StudentPaymentHistoryAdmin
 from .marks import StudentMarkAdmin
-from .test import TestSessionAdmin, TestSessionQuestionAdmin, TestSessionAnswerAdmin
 from .question import *
 from .auth import *
 
@@ -30,7 +29,8 @@ except admin.sites.NotRegistered:
 
 @admin.register(Group)
 class GroupAdmin(RowActionsAdminMixin, DjangoGroupAdmin):
-    pass
+    def get_model_perms(self, request):
+        return {}
 
 
 try:

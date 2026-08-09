@@ -5,6 +5,7 @@ import random
 from app.models.question import Lesson, Question, Module
 from app.models.test import TestSession, TestSessionQuestion, TestSessionAnswer
 from app.serializers.question import CourseSerializer, LessonSerializer
+from app.services.student.test_progress_service import is_module_unlocked
 
 
 def pick_lang_value(data, lang="uz"):
@@ -191,6 +192,14 @@ class StartTestSessionSerializer(serializers.Serializer):
                 "lesson_id": "Bu lesson studentning course'iga tegishli emas."
             })
 
+        if not is_module_unlocked(user, student_course, lesson.module_id):
+            raise serializers.ValidationError({
+                "module_id": (
+                    "Bu modul hali yopiq. Avval oldingi modul testlarini "
+                    "to‘liq yakunlang."
+                )
+            })
+
         if module and lesson.module_id != module.id:
             raise serializers.ValidationError({
                 "module_id": "Tanlangan module ushbu lessonga tegishli emas."
@@ -340,18 +349,27 @@ class SubmitAnswerSerializer(serializers.Serializer):
                 user=session.student
             )
 
-            coin_delta = 1 if new_is_correct else -1
+            reward_delta = 1 if new_is_correct else -1
 
-            student_profile.test_coin = max(0, student_profile.test_coin + coin_delta)
+            student_profile.local_test_score = max(
+                0,
+                student_profile.local_test_score + reward_delta,
+            )
+            student_profile.test_coin = max(
+                0,
+                student_profile.test_coin + reward_delta,
+            )
             student_profile.lesson_last_coin = max(
                 0,
-                (student_profile.lesson_last_coin or 0) + coin_delta
+                (student_profile.lesson_last_coin or 0) + reward_delta
             )
-            student_profile.recalculate_total_coin(save=False)
+            student_profile.recalculate_all_totals(save=False)
             student_profile.save(
                 update_fields=[
+                    "local_test_score",
                     "test_coin",
                     "lesson_last_coin",
+                    "total_score",
                     "total_coin",
                     "updated_at",
                 ]

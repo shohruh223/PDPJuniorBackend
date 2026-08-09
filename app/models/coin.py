@@ -61,9 +61,20 @@ class CoinOrder(BaseModel):
     status = models.CharField(
         max_length=20,
         choices=StatusChoices.choices,
-        default=StatusChoices.COMPLETED,
+        default=StatusChoices.PENDING,
         db_index=True,
     )
+    student_name = models.CharField(max_length=120, blank=True, default="")
+    student_phone = models.CharField(max_length=20, blank=True, default="")
+    course_name = models.CharField(max_length=120, blank=True, default="")
+    branch_name = models.CharField(max_length=120, blank=True, default="")
+    group_name = models.CharField(max_length=120, blank=True, default="")
+    balance_before = models.PositiveIntegerField(default=0)
+    balance_after = models.PositiveIntegerField(default=0)
+    telegram_sent_at = models.DateTimeField(blank=True, null=True)
+    telegram_error = models.TextField(blank=True, default="")
+    is_admin_read = models.BooleanField(default=False, db_index=True)
+    admin_read_at = models.DateTimeField(blank=True, null=True)
 
     class Meta:
         db_table = "coin_orders"

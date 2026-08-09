@@ -12,6 +12,7 @@ from drf_yasg.utils import swagger_auto_schema
 from app.models.question import Course, Lesson, Module
 from app.models.test import TestSession, TestSessionQuestion, TestSessionAnswer
 from app.permissions import IsStudentUserRole
+from app.services.student.test_progress_service import get_unlocked_module_ids
 from app.serializers.test import (
     StartTestSessionSerializer,
     StartTestSessionResponseSerializer,
@@ -187,8 +188,12 @@ class StudentAvailableLessonsAPIView(StudentTestBaseAPIView):
             .order_by("order", "id")
         )
 
+        unlocked_module_ids = get_unlocked_module_ids(request.user, course)
         modules = (
-            Module.objects.filter(course=course)
+            Module.objects.filter(
+                course=course,
+                pk__in=unlocked_module_ids,
+            )
             .order_by("order", "id")
             .prefetch_related(
                 Prefetch(
@@ -524,8 +529,10 @@ class SubmitAnswerAPIView(StudentTestBaseAPIView):
         serializer.is_valid(raise_exception=True)
         answer = serializer.save()
 
-        total = session.items.count()
-        answered = session.answers.count()
+        # Session answers prefetch qilingan bo‘lishi mumkin; yangi saqlangan
+        # javobni darhol hisoblash uchun bog‘langan manager cache'ini ishlatmaymiz.
+        total = TestSessionQuestion.objects.filter(session=session).count()
+        answered = TestSessionAnswer.objects.filter(session=session).count()
 
         finished = answered >= total
         if finished:

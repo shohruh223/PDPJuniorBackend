@@ -4,6 +4,9 @@ from django.db import transaction
 
 from app.models.auth import StudentProfile
 from app.models.coin import CoinOrder, CoinProduct
+from app.services.portal.shop_notification_service import (
+    send_shop_order_notification,
+)
 
 
 def serialize_shop_product(product: CoinProduct, request=None) -> dict:
@@ -59,6 +62,12 @@ def serialize_order(order: CoinOrder) -> dict:
 
 @transaction.atomic
 def purchase_product(*, profile: StudentProfile, product_id) -> tuple[CoinOrder | None, str | None]:
+    profile = (
+        StudentProfile.objects.select_for_update()
+        .select_related("user", "course", "branch")
+        .get(pk=profile.pk)
+    )
+
     try:
         product = CoinProduct.objects.select_for_update().get(id=product_id, is_active=True)
     except CoinProduct.DoesNotExist:
@@ -67,8 +76,8 @@ def purchase_product(*, profile: StudentProfile, product_id) -> tuple[CoinOrder 
     if product.stock <= 0:
         return None, "Mahsulot tugagan."
 
-    balance = get_student_balance(profile)
-    if balance < product.price:
+    balance_before = get_student_balance(profile)
+    if balance_before < product.price:
         return None, "Coin yetarli emas."
 
     remaining = product.price
@@ -79,7 +88,15 @@ def purchase_product(*, profile: StudentProfile, product_id) -> tuple[CoinOrder 
         profile.test_coin = 0
         profile.api_coin = max(0, (profile.api_coin or 0) - remaining)
 
-    profile.recalculate_total_coin(save=True)
+    profile.recalculate_total_coin(save=False)
+    profile.save(
+        update_fields=[
+            "test_coin",
+            "api_coin",
+            "total_coin",
+            "updated_at",
+        ]
+    )
 
     product.stock -= 1
     product.save(update_fields=["stock", "updated_at"])
@@ -89,6 +106,16 @@ def purchase_product(*, profile: StudentProfile, product_id) -> tuple[CoinOrder 
         product=product,
         product_title=product.name,
         price=product.price,
-        status=CoinOrder.StatusChoices.COMPLETED,
+        status=CoinOrder.StatusChoices.PENDING,
+        student_name=profile.user.full_name,
+        student_phone=profile.user.phone_number,
+        course_name=profile.course.name if profile.course else "",
+        branch_name=profile.branch.name if profile.branch else "",
+        group_name=profile.group_name,
+        balance_before=balance_before,
+        balance_after=profile.total_coin,
+    )
+    transaction.on_commit(
+        lambda order_id=order.pk: send_shop_order_notification(order_id)
     )
     return order, None

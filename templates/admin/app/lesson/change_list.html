@@ -1,0 +1,152 @@
+{% extends "admin/change_list.html" %}
+{% load i18n static %}
+
+{% block content_title %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs pdp-catalog-breadcrumbs">
+    <a href="{% url 'admin:app_lesson_changelist' %}">Darslar</a>
+    {% if selected_course %}
+        <span>›</span>
+        {% if catalog_stage == "modules" %}
+            <strong>{{ selected_course.name }}</strong>
+        {% else %}
+            <a href="{% url 'admin:app_lesson_changelist' %}?course__id__exact={{ selected_course.pk }}">{{ selected_course.name }}</a>
+        {% endif %}
+    {% endif %}
+    {% if selected_module %}
+        <span>›</span>
+        {% if catalog_stage == "lessons" %}
+            <strong>{{ selected_module.name }}</strong>
+        {% else %}
+            <a href="{% url 'admin:app_lesson_changelist' %}?course__id__exact={{ selected_course.pk }}&amp;module__id__exact={{ selected_module.pk }}">{{ selected_module.name }}</a>
+        {% endif %}
+    {% endif %}
+    {% if selected_lesson %}
+        <span>›</span>
+        <strong>{{ selected_lesson.name }}</strong>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main" class="pdp-catalog">
+    <header class="pdp-catalog__header">
+        <div>
+            <span class="pdp-eyebrow">Ta’lim kontenti</span>
+            {% if catalog_stage == "courses" %}
+                <h1>Kurslar</h1>
+                <p>Kursni tanlang va unga tegishli modullarni boshqaring.</p>
+            {% elif catalog_stage == "modules" %}
+                <h1>{{ selected_course.name }} modullari</h1>
+                <p>Kurs ichidagi modullar tartib bo‘yicha joylashtirilgan.</p>
+            {% elif catalog_stage == "lessons" %}
+                <h1>{{ selected_module.name }}</h1>
+                <p>{{ selected_course.name }} kursining mavzu va darslari.</p>
+            {% else %}
+                <h1>{{ selected_lesson.name }} savollari</h1>
+                <p>{{ selected_module.name }} moduliga tegishli savollar.</p>
+            {% endif %}
+        </div>
+
+        <div class="pdp-catalog__header-actions">
+            {% if catalog_stage == "courses" and course_perms.add %}
+                <a class="pdp-catalog__add" href="{% url 'admin:app_course_add' %}">+ Yangi kurs</a>
+            {% elif catalog_stage == "modules" and module_perms.add %}
+                <a class="pdp-catalog__add" href="{% url 'admin:app_module_add' %}?course={{ selected_course.pk }}">+ Yangi modul</a>
+            {% elif catalog_stage == "lessons" and lesson_perms.add %}
+                <a class="pdp-catalog__add" href="{% url 'admin:app_lesson_add' %}?course={{ selected_course.pk }}&amp;module={{ selected_module.pk }}">+ Yangi mavzu</a>
+            {% elif catalog_stage == "questions" and question_perms.add %}
+                <a class="pdp-catalog__add" href="{% url 'admin:app_question_add' %}?course={{ selected_course.pk }}&amp;module={{ selected_module.pk }}&amp;lesson={{ selected_lesson.pk }}">+ Yangi savol</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="pdp-catalog__grid">
+        {% if catalog_stage == "courses" %}
+            {% for course in catalog_courses %}
+                <article class="pdp-catalog-card pdp-catalog-card--course">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_lesson_changelist' %}?course__id__exact={{ course.pk }}">
+                        <span class="pdp-catalog-card__number">{{ forloop.counter|stringformat:"02d" }}</span>
+                        <span class="pdp-catalog-card__icon">{{ course.name|slice:":1" }}</span>
+                        <span class="pdp-catalog-card__copy">
+                            <strong>{{ course.name }}</strong>
+                            <small>{{ course.module_count }} modul · {{ course.lesson_count }} mavzu</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                    <div class="pdp-catalog-card__actions">
+                        {% if course_perms.change %}<a href="{% url 'admin:app_course_change' course.pk %}">Tahrirlash</a>{% endif %}
+                        {% if course_perms.delete %}<a class="delete" href="{% url 'admin:app_course_delete' course.pk %}">O‘chirish</a>{% endif %}
+                    </div>
+                </article>
+            {% empty %}
+                <div class="pdp-catalog-empty">Hozircha kurslar mavjud emas.</div>
+            {% endfor %}
+
+        {% elif catalog_stage == "modules" %}
+            {% for module in catalog_modules %}
+                <article class="pdp-catalog-card">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_lesson_changelist' %}?course__id__exact={{ selected_course.pk }}&amp;module__id__exact={{ module.pk }}">
+                        <span class="pdp-catalog-card__number">{{ module.order|stringformat:"02d" }}</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>{{ module.order }}-modul</small>
+                            <strong>{{ module.name }}</strong>
+                            <small>{{ module.lesson_count }} ta mavzu</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                    <div class="pdp-catalog-card__actions">
+                        {% if module_perms.change %}<a href="{% url 'admin:app_module_change' module.pk %}">Tahrirlash</a>{% endif %}
+                        {% if module_perms.delete %}<a class="delete" href="{% url 'admin:app_module_delete' module.pk %}">O‘chirish</a>{% endif %}
+                    </div>
+                </article>
+            {% empty %}
+                <div class="pdp-catalog-empty">Bu kursda hozircha modullar mavjud emas.</div>
+            {% endfor %}
+
+        {% elif catalog_stage == "lessons" %}
+            {% for lesson in catalog_lessons %}
+                <article class="pdp-catalog-card pdp-catalog-card--lesson">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_lesson_changelist' %}?course__id__exact={{ selected_course.pk }}&amp;module__id__exact={{ selected_module.pk }}&amp;id__exact={{ lesson.pk }}">
+                        <span class="pdp-catalog-card__number">{{ lesson.order|stringformat:"02d" }}</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>{{ lesson.order }}-mavzu</small>
+                            <strong>{{ lesson.name }}</strong>
+                            <small>{{ lesson.question_count }} ta savol</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                    <div class="pdp-catalog-card__actions">
+                        {% if lesson_perms.change %}<a href="{% url 'admin:app_lesson_change' lesson.pk %}">Tahrirlash</a>{% endif %}
+                        {% if lesson_perms.delete %}<a class="delete" href="{% url 'admin:app_lesson_delete' lesson.pk %}">O‘chirish</a>{% endif %}
+                    </div>
+                </article>
+            {% empty %}
+                <div class="pdp-catalog-empty">Bu modulda hozircha mavzular mavjud emas.</div>
+            {% endfor %}
+
+        {% else %}
+            {% for question in catalog_questions %}
+                <article class="pdp-catalog-card pdp-catalog-card--question">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_question_change' question.pk %}">
+                        <span class="pdp-catalog-card__number">{{ forloop.counter|stringformat:"02d" }}</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>Savol #{{ question.pk }}</small>
+                            <strong>{{ question.text.uz|default:"Savol matni kiritilmagan" }}</strong>
+                            <small>To‘g‘ri javob: {{ question.correct_option }}</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                    <div class="pdp-catalog-card__actions">
+                        {% if question_perms.change %}<a href="{% url 'admin:app_question_change' question.pk %}">Tahrirlash</a>{% endif %}
+                        {% if question_perms.delete %}<a class="delete" href="{% url 'admin:app_question_delete' question.pk %}">O‘chirish</a>{% endif %}
+                    </div>
+                </article>
+            {% empty %}
+                <div class="pdp-catalog-empty">Bu mavzuda hozircha savollar mavjud emas.</div>
+            {% endfor %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

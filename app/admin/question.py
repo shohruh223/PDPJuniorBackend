@@ -1,7 +1,9 @@
 from django import forms
 from django.contrib import admin
 from django.core.exceptions import ValidationError
+from django.db.models import Count
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import path
 
 from app.admin.media import MultipleFileField, save_uploaded_file
@@ -98,6 +100,19 @@ class QuestionAdminForm(forms.ModelForm):
         self.fields["course"].queryset = Course.objects.all().order_by("id")
         self.fields["module"].queryset = Module.objects.none()
         self.fields["lesson"].queryset = Lesson.objects.none()
+
+        initial_course_id = self.initial.get("course")
+        initial_module_id = self.initial.get("module")
+
+        if initial_course_id:
+            self.fields["module"].queryset = Module.objects.filter(
+                course_id=initial_course_id
+            ).order_by("order", "id")
+
+        if initial_module_id:
+            self.fields["lesson"].queryset = Lesson.objects.filter(
+                module_id=initial_module_id
+            ).order_by("order", "id")
 
         if self.instance and self.instance.pk and self.instance.lesson_id:
             lesson = self.instance.lesson
@@ -288,6 +303,10 @@ class QuestionAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     )
     ordering = ("-created_at",)
 
+    def get_model_perms(self, request):
+        # Kurs, modul, dars va savollar bitta "Darslar" katalogida ko‘rsatiladi.
+        return {}
+
     class Media:
         js = (
             "app/admin/js/question_filter.js",
@@ -364,6 +383,9 @@ class CourseAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     search_fields = ("name",)
     ordering = ("name",)
 
+    def get_model_perms(self, request):
+        return {}
+
 
 @admin.register(Module)
 class ModuleAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
@@ -387,6 +409,9 @@ class ModuleAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
         "id",
     )
 
+    def get_model_perms(self, request):
+        return {}
+
 
 class LessonAdminForm(forms.ModelForm):
     class Meta:
@@ -402,6 +427,12 @@ class LessonAdminForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         self.fields["module"].queryset = Module.objects.none()
+
+        initial_course_id = self.initial.get("course")
+        if initial_course_id:
+            self.fields["module"].queryset = Module.objects.filter(
+                course_id=initial_course_id
+            ).order_by("order", "id")
 
         if self.instance and self.instance.pk and self.instance.course_id:
             self.fields["module"].queryset = Module.objects.filter(
@@ -432,6 +463,7 @@ class LessonAdminForm(forms.ModelForm):
 class LessonAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = LessonResource
     form = LessonAdminForm
+    change_list_template = "admin/app/lesson/change_list.html"
 
     list_display = (
         "id",
@@ -455,6 +487,123 @@ class LessonAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
         "order",
         "id",
     )
+
+    def changelist_view(self, request, extra_context=None):
+        course_id = request.GET.get("course__id__exact")
+        module_id = request.GET.get("module__id__exact")
+        lesson_id = request.GET.get("id__exact")
+
+        selected_course = None
+        selected_module = None
+        selected_lesson = None
+        stage = "courses"
+
+        if lesson_id:
+            selected_lesson = get_object_or_404(
+                Lesson.objects.select_related("course", "module"),
+                pk=lesson_id,
+            )
+            selected_course = selected_lesson.course
+            selected_module = selected_lesson.module
+            stage = "questions"
+        elif module_id:
+            selected_module = get_object_or_404(
+                Module.objects.select_related("course"),
+                pk=module_id,
+            )
+            selected_course = selected_module.course
+            stage = "lessons"
+        elif course_id:
+            selected_course = get_object_or_404(Course, pk=course_id)
+            stage = "modules"
+
+        if course_id and selected_course and str(selected_course.pk) != course_id:
+            selected_course = get_object_or_404(Course, pk=course_id)
+        if module_id and selected_module and str(selected_module.pk) != module_id:
+            selected_module = get_object_or_404(
+                Module,
+                pk=module_id,
+                course=selected_course,
+            )
+        if (
+            selected_module
+            and selected_course
+            and selected_module.course_id != selected_course.pk
+        ):
+            selected_module = get_object_or_404(
+                Module,
+                pk=selected_module.pk,
+                course=selected_course,
+            )
+        if selected_lesson and selected_lesson.module_id != selected_module.pk:
+            selected_lesson = get_object_or_404(
+                Lesson,
+                pk=selected_lesson.pk,
+                module=selected_module,
+            )
+
+        catalog_context = {
+            "catalog_stage": stage,
+            "selected_course": selected_course,
+            "selected_module": selected_module,
+            "selected_lesson": selected_lesson,
+            "catalog_courses": Course.objects.annotate(
+                module_count=Count("modules", distinct=True),
+                lesson_count=Count("lessons", distinct=True),
+            ).order_by("sort_order", "name", "id"),
+            "catalog_modules": Module.objects.none(),
+            "catalog_lessons": Lesson.objects.none(),
+            "catalog_questions": Question.objects.none(),
+            "course_perms": self.admin_site._registry[Course].get_model_perms(request),
+            "module_perms": self.admin_site._registry[Module].get_model_perms(request),
+            "lesson_perms": self.get_model_perms(request),
+            "question_perms": self.admin_site._registry[Question].get_model_perms(request),
+        }
+
+        # get_model_perms() navigatsiyani yashirish uchun bo‘sh; real CRUD
+        # ruxsatlari katalog tugmalari uchun alohida hisoblanadi.
+        for key, model in (
+            ("course_perms", Course),
+            ("module_perms", Module),
+            ("lesson_perms", Lesson),
+            ("question_perms", Question),
+        ):
+            model_admin = self.admin_site._registry[model]
+            catalog_context[key] = {
+                "add": model_admin.has_add_permission(request),
+                "change": model_admin.has_change_permission(request),
+                "delete": model_admin.has_delete_permission(request),
+                "view": model_admin.has_view_permission(request),
+            }
+
+        if selected_course:
+            catalog_context["catalog_modules"] = (
+                Module.objects.filter(course=selected_course)
+                .annotate(lesson_count=Count("lessons", distinct=True))
+                .order_by("order", "id")
+            )
+
+        if selected_module:
+            catalog_context["catalog_lessons"] = (
+                Lesson.objects.filter(
+                    course=selected_course,
+                    module=selected_module,
+                )
+                .annotate(question_count=Count("questions", distinct=True))
+                .order_by("order", "id")
+            )
+
+        if selected_lesson:
+            catalog_context["catalog_questions"] = (
+                Question.objects.filter(lesson=selected_lesson)
+                .select_related("lesson")
+                .order_by("-created_at", "id")
+            )
+
+        if extra_context:
+            catalog_context.update(extra_context)
+
+        return super().changelist_view(request, extra_context=catalog_context)
 
     class Media:
         js = (

@@ -209,6 +209,9 @@ ESKIZ_EMAIL = os.getenv("ESKIZ_EMAIL", "test@gmail.com")
 ESKIZ_PASSWORD = os.getenv("ESKIZ_PASSWORD", "")
 ESKIZ_SENDER = os.getenv("ESKIZ_SENDER", "4546")
 
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_SHOP_CHAT_ID = os.getenv("TELEGRAM_SHOP_CHAT_ID", "-5326868544")
+
 # ---------------------------------------------------------------------
 # MEDIA STORAGE: Local yoki Cloudflare R2 (S3-compatible)
 

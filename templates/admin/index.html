@@ -1,62 +1,132 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static %}
+{% load i18n static log %}
 
 {% block bodyclass %}{{ block.super }} dashboard pdp-dashboard{% endblock %}
 {% block breadcrumbs %}{% endblock %}
 
 {% block content %}
-<section class="pdp-hero">
-    <div class="pdp-hero__content">
-        <span class="pdp-eyebrow">PDP Junior — Smart kelajak</span>
-        <h1>Xush kelibsiz, {{ request.user.full_name|default:request.user.phone_number }}</h1>
-        <p>Ta’lim jarayoni, o‘quvchilar va kontentni bitta qulay paneldan boshqaring.</p>
-    </div>
-    <div class="pdp-hero__visual" aria-hidden="true">
-        <span class="pdp-orbit pdp-orbit--one"></span>
-        <span class="pdp-orbit pdp-orbit--two"></span>
-        <span class="pdp-code-card">
-            <img src="{% static 'app/admin/img/hero-rocket.svg' %}" alt="">
-        </span>
-    </div>
-</section>
+<div id="content-main" class="pdp-dashboard-v2">
+    <section class="pdp-dashboard-welcome">
+        <div class="pdp-dashboard-welcome__glow"></div>
+        <div class="pdp-dashboard-welcome__copy">
+            <span class="pdp-dashboard-welcome__eyebrow">
+                <i></i> PDP Junior boshqaruv markazi
+            </span>
+            <h1>Xush kelibsiz, <span>{{ request.user.full_name|default:request.user.phone_number }}</span></h1>
+            <p>Ta’lim jarayoni, o‘quvchilar va kontentni yagona professional panel orqali boshqaring.</p>
+            <div class="pdp-dashboard-welcome__actions">
+                <a href="{% url 'admin:app_studentprofile_changelist' %}">Studentlar <span>→</span></a>
+                <a href="{% url 'admin:app_monthhero_changelist' %}">Oy qahramonlari <span>→</span></a>
+            </div>
+        </div>
+        <div class="pdp-dashboard-welcome__meta">
+            <div class="pdp-dashboard-date">
+                <span>{% now "d" %}</span>
+                <div><strong>{% now "F" %}</strong><small>{% now "Y" %} yil</small></div>
+            </div>
+            <div class="pdp-dashboard-rocket" aria-hidden="true">
+                <span class="pdp-dashboard-rocket__orbit"></span>
+                <img src="{% static 'app/admin/img/hero-rocket.svg' %}" alt="">
+            </div>
+        </div>
+    </section>
 
-<div class="pdp-section-heading">
-    <div>
-        <span class="pdp-eyebrow">Boshqaruv</span>
-        <h2>Modullar</h2>
+    <div class="pdp-dashboard-layout">
+        <main class="pdp-dashboard-modules">
+            <div class="pdp-dashboard-heading">
+                <div>
+                    <span class="pdp-eyebrow">Boshqaruv</span>
+                    <h2>Asosiy bo‘limlar</h2>
+                    <p>Kerakli bo‘limni tanlab ma’lumotlarni boshqaring</p>
+                </div>
+                <span class="pdp-dashboard-heading__badge">Barcha modullar</span>
+            </div>
+
+            <div class="pdp-dashboard-card-grid">
+                {% for app in app_list %}
+                    {% for model in app.models %}
+                        <article class="pdp-dashboard-card pdp-dashboard-card--{{ model.object_name|lower }}">
+                            {% if model.admin_url %}
+                                <a class="pdp-dashboard-card__main" href="{{ model.admin_url }}">
+                            {% else %}
+                                <div class="pdp-dashboard-card__main">
+                            {% endif %}
+                                <span class="pdp-dashboard-card__icon">
+                                    {% if model.object_name == "MonthHero" %}★
+                                    {% elif model.object_name == "Lesson" %}≡
+                                    {% elif model.object_name == "Branch" %}⌂
+                                    {% elif model.object_name == "CoinProduct" %}◆
+                                    {% elif model.object_name == "StudentPaymentHistory" %}▣
+                                    {% elif model.object_name == "GalleryPost" or model.object_name == "Portfolio" or model.object_name == "News" %}▧
+                                    {% elif model.object_name == "User" or model.object_name == "StudentProfile" or model.object_name == "Mentor" %}♙
+                                    {% else %}◇{% endif %}
+                                </span>
+                                <span class="pdp-dashboard-card__copy">
+                                    <small>
+                                        {% if model.object_name == "Lesson" %}Ta’lim kontenti
+                                        {% elif model.object_name == "MonthHero" %}Studentlar reytingi
+                                        {% elif model.object_name == "Branch" %}Manzillar boshqaruvi
+                                        {% elif model.object_name == "StudentProfile" or model.object_name == "User" %}Foydalanuvchilar
+                                        {% elif model.object_name == "Mentor" %}Ta’lim jamoasi
+                                        {% elif model.object_name == "StudentPaymentHistory" %}Moliya
+                                        {% else %}Kontent boshqaruvi{% endif %}
+                                    </small>
+                                    <strong>{{ model.name }}</strong>
+                                    <span>Ma’lumotlarni ko‘rish va boshqarish</span>
+                                </span>
+                                <span class="pdp-dashboard-card__arrow">→</span>
+                            {% if model.admin_url %}</a>{% else %}</div>{% endif %}
+                            <footer class="pdp-dashboard-card__footer">
+                                {% if model.add_url %}
+                                    <a href="{{ model.add_url }}"><span>+</span> Yangi qo‘shish</a>
+                                {% endif %}
+                                {% if model.admin_url %}
+                                    <a href="{{ model.admin_url }}">Ro‘yxatni ochish</a>
+                                {% endif %}
+                            </footer>
+                        </article>
+                    {% endfor %}
+                {% empty %}
+                    <div class="pdp-dashboard-empty">Siz uchun mavjud bo‘limlar topilmadi.</div>
+                {% endfor %}
+            </div>
+        </main>
+
+        <aside class="pdp-dashboard-activity">
+            <div class="pdp-dashboard-heading pdp-dashboard-heading--activity">
+                <div>
+                    <span class="pdp-eyebrow">Faoliyat</span>
+                    <h2>So‘nggi harakatlar</h2>
+                </div>
+                <span class="pdp-dashboard-live"><i></i> Live</span>
+            </div>
+            {% get_admin_log 7 as admin_log for_user user %}
+            {% if not admin_log %}
+                <div class="pdp-dashboard-empty">Hozircha harakatlar mavjud emas.</div>
+            {% else %}
+                <ol class="pdp-dashboard-timeline">
+                    {% for entry in admin_log %}
+                        <li>
+                            <span class="pdp-dashboard-timeline__dot {% if entry.is_addition %}is-add{% elif entry.is_deletion %}is-delete{% else %}is-change{% endif %}">
+                                {% if entry.is_addition %}+{% elif entry.is_deletion %}−{% else %}✓{% endif %}
+                            </span>
+                            <div>
+                                {% if entry.is_deletion or not entry.get_admin_url %}
+                                    <strong>{{ entry.object_repr }}</strong>
+                                {% else %}
+                                    <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
+                                {% endif %}
+                                <span>
+                                    {% if entry.content_type %}{{ entry.content_type.name|capfirst }}{% else %}Admin{% endif %}
+                                </span>
+                            </div>
+                        </li>
+                    {% endfor %}
+                </ol>
+            {% endif %}
+        </aside>
     </div>
-    <p>Kerakli bo‘limni tanlang va ma’lumotlarni boshqaring</p>
 </div>
-
-{% include "admin/app_list.html" with app_list=app_list show_changelinks=True %}
 {% endblock %}
 
-{% block sidebar %}
-<aside id="content-related" class="pdp-activity">
-    <div class="module" id="recent-actions-module">
-        <h2>{% translate "Recent actions" %}</h2>
-        <h3>{% translate "My actions" %}</h3>
-        {% load log %}
-        {% get_admin_log 8 as admin_log for_user user %}
-        {% if not admin_log %}
-            <p>{% translate "None available" %}</p>
-        {% else %}
-            <ul class="actionlist">
-            {% for entry in admin_log %}
-                <li class="{% if entry.is_addition %}addlink{% endif %}{% if entry.is_change %} changelink{% endif %}{% if entry.is_deletion %} deletelink{% endif %}">
-                    {% if entry.is_deletion or not entry.get_admin_url %}
-                        {{ entry.object_repr }}
-                    {% else %}
-                        <a href="{{ entry.get_admin_url }}">{{ entry.object_repr }}</a>
-                    {% endif %}
-                    <br>
-                    {% if entry.content_type %}
-                        <span class="mini quiet">{{ entry.content_type.name|capfirst }}</span>
-                    {% endif %}
-                </li>
-            {% endfor %}
-            </ul>
-        {% endif %}
-    </div>
-</aside>
-{% endblock %}
+{% block sidebar %}{% endblock %}
