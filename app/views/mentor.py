@@ -69,7 +69,6 @@ Frontend mentorlarini qaytaradi. Parametrlar yuborilmasa barcha mos mentorlar ol
                                         format=openapi.FORMAT_URI,
                                         x_nullable=True,
                                     ),
-                                    "socials": openapi.Schema(type=openapi.TYPE_OBJECT),
                                 },
                             ),
                         ),
@@ -89,11 +88,6 @@ Frontend mentorlarini qaytaradi. Parametrlar yuborilmasa barcha mos mentorlar ol
                                 "studentsCount": "120+",
                                 "workingPeriodStart": "2022-02-03",
                                 "avatar": "http://127.0.0.1:8000/media/mentors/asadbek.jpg",
-                                "socials": {
-                                    "github": "#",
-                                    "linkedin": "#",
-                                    "instagram": "#",
-                                },
                             }
                         ],
                     }

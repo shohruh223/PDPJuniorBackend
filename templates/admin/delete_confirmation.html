@@ -1,0 +1,97 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block extrahead %}
+    {{ block.super }}
+    {{ media }}
+    <script src="{% static 'admin/js/cancel.js' %}" async></script>
+{% endblock %}
+
+{% block bodyclass %}{{ block.super }} app-{{ opts.app_label }} model-{{ opts.model_name }} delete-confirmation{% endblock %}
+{% block content_title %}{% endblock %}
+{% block content_subtitle %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Bosh sahifa</a>
+    <span>›</span>
+    <a href="{% url opts|admin_urlname:'changelist' %}">{{ opts.verbose_name_plural|capfirst }}</a>
+    <span>›</span>
+    <a href="{% url opts|admin_urlname:'change' object.pk|admin_urlquote %}">{{ object|truncatewords:"18" }}</a>
+    <span>›</span>
+    <strong>O‘chirish</strong>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="pdp-delete">
+    <section class="pdp-delete__card">
+        <span class="pdp-delete__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+                <path d="M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6"/>
+            </svg>
+        </span>
+        <span class="pdp-eyebrow">Ogohlantirish</span>
+        <h1>{{ opts.verbose_name|capfirst }}ni o‘chirish</h1>
+
+        {% if perms_lacking %}
+            <p>
+                <strong>{{ object }}</strong> ni o‘chirish bog‘liq ma’lumotlarni ham o‘chiradi,
+                lekin sizda quyidagi turlarni o‘chirishga ruxsat yo‘q:
+            </p>
+            <div class="pdp-delete__panel">
+                <ul id="deleted-objects">{{ perms_lacking|unordered_list }}</ul>
+            </div>
+            <div class="pdp-delete__actions">
+                <a href="#" class="button cancel-link">Ortga qaytish</a>
+            </div>
+        {% elif protected %}
+            <p>
+                <strong>{{ object }}</strong> ni o‘chirish uchun avval quyidagi himoyalangan
+                bog‘liq ma’lumotlarni o‘chirish kerak:
+            </p>
+            <div class="pdp-delete__panel">
+                <ul id="deleted-objects">{{ protected|unordered_list }}</ul>
+            </div>
+            <div class="pdp-delete__actions">
+                <a href="#" class="button cancel-link">Ortga qaytish</a>
+            </div>
+        {% else %}
+            <p>
+                Haqiqatan ham <strong>{{ object }}</strong> ni o‘chirmoqchimisiz?
+                Bu amalni qaytarib bo‘lmaydi. Bog‘liq ma’lumotlar ham o‘chiriladi.
+            </p>
+
+            {% if model_count %}
+            <div class="pdp-delete__panel">
+                <h2>Qisqacha</h2>
+                <ul class="pdp-delete__summary">
+                    {% for model_name, object_count in model_count %}
+                    <li>
+                        <span>{{ model_name|capfirst }}</span>
+                        <b>{{ object_count }}</b>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="pdp-delete__panel">
+                <h2>O‘chiriladigan ma’lumotlar</h2>
+                <ul id="deleted-objects">{{ deleted_objects|unordered_list }}</ul>
+            </div>
+
+            <form method="post">
+                {% csrf_token %}
+                <input type="hidden" name="post" value="yes">
+                {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+                {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+                <div class="pdp-delete__actions">
+                    <input type="submit" value="Ha, o‘chirish">
+                    <a href="#" class="button cancel-link">Bekor qilish</a>
+                </div>
+            </form>
+        {% endif %}
+    </section>
+</div>
+{% endblock %}

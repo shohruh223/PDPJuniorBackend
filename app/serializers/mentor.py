@@ -24,7 +24,6 @@ class MentorSerializer(serializers.ModelSerializer):
             "studentsCount",
             "workingPeriodStart",
             "avatar",
-            "socials",
         )
         read_only_fields = fields
 

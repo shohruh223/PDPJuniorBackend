@@ -87,6 +87,8 @@ class Module(models.Model):
         db_table = "modules"
         ordering = ["order", "id"]
         unique_together = ("course", "order")
+        verbose_name = "Modul"
+        verbose_name_plural = "Modullar"
 
     def __str__(self):
         return f"{self.course.name} | {self.order}-modul | {self.name}"

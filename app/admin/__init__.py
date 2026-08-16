@@ -1,7 +1,6 @@
 from .branch import BranchAdmin
 from .mentor import MentorAdmin
 from .portfolio import PortfolioAdmin
-from .news import NewsAdmin
 from .month_hero import MonthHeroAdmin
 from .coin import CoinProductAdmin, CoinOrderAdmin
 from .gallery import GalleryPostAdmin

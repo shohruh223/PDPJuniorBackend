@@ -3,20 +3,8 @@ from django.core.exceptions import ValidationError
 
 
 def validate_socials(value):
-    if not isinstance(value, dict):
-        raise ValidationError("socials dict bo‘lishi kerak.")
-
-    allowed_keys = {"github", "linkedin", "instagram"}
-    invalid_keys = set(value.keys()) - allowed_keys
-
-    if invalid_keys:
-        raise ValidationError(
-            f"socials ichida noto‘g‘ri key bor: {', '.join(invalid_keys)}"
-        )
-
-    for key, link in value.items():
-        if not isinstance(link, str):
-            raise ValidationError(f"socials['{key}'] string bo‘lishi kerak.")
+    """Eski migratsiyalar uchun saqlangan; yangi kodda ishlatilmaydi."""
+    return
 
 
 def validate_avatar(value):
@@ -49,7 +37,6 @@ class Mentor(models.Model):
     working_period_start = models.DateField()
 
     avatar = models.JSONField(default=dict, blank=True, validators=[validate_avatar])
-    socials = models.JSONField(default=dict, blank=True, validators=[validate_socials])
 
     is_active = models.BooleanField(default=True)
 
@@ -58,7 +45,6 @@ class Mentor(models.Model):
 
     def clean(self):
         validate_avatar(self.avatar)
-        validate_socials(self.socials)
 
     def save(self, *args, **kwargs):
         self.full_clean()

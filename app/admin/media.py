@@ -26,6 +26,16 @@ class MultipleFileInput(forms.ClearableFileInput):
         attrs["multiple"] = True
         super().__init__(attrs)
 
+    def value_from_datadict(self, data, files, name):
+        if hasattr(files, "getlist"):
+            return files.getlist(name)
+        value = super().value_from_datadict(data, files, name)
+        if not value:
+            return []
+        if isinstance(value, (list, tuple)):
+            return list(value)
+        return [value]
+
 
 class MultipleFileField(forms.FileField):
     widget = MultipleFileInput

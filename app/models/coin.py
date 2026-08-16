@@ -31,8 +31,8 @@ class CoinProduct(BaseModel):
     class Meta:
         db_table = "coin_products"
         ordering = ["price"]
-        verbose_name = "Coin product"
-        verbose_name_plural = "Coin products"
+        verbose_name = "Coin mahsuloti"
+        verbose_name_plural = "Coin mahsulotlari"
 
     def __str__(self):
         return f"{self.name} - {self.price} coin"

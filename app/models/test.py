@@ -36,6 +36,8 @@ class TestSession(models.Model):
 
     class Meta:
         ordering = ["-started_at"]
+        verbose_name = "Test sessiyasi"
+        verbose_name_plural = "Test sessiyalari"
 
     def save(self, *args, **kwargs):
         if self.total_questions and not self.duration_minutes:
@@ -86,6 +88,8 @@ class TestSessionQuestion(models.Model):
 
     class Meta:
         ordering = ["order"]
+        verbose_name = "Test savoli"
+        verbose_name_plural = "Test savollari"
         constraints = [
             models.UniqueConstraint(
                 fields=["session", "order"],
@@ -116,6 +120,8 @@ class TestSessionAnswer(models.Model):
     is_correct = models.BooleanField(default=False)
 
     class Meta:
+        verbose_name = "Test javobi"
+        verbose_name_plural = "Test javoblari"
         constraints = [
             models.UniqueConstraint(
                 fields=["session", "question"],

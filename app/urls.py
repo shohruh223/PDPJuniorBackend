@@ -17,7 +17,6 @@ from app.views.frontend_auth_view import (
 )
 from app.views.mentor import MentorListAPIView
 from app.views.month_hero import MonthHeroListAPIView
-from app.views.news import NewsListAPIView, PublicNewsListAPIView
 from app.views.payment import StudentPaymentHistoryListAPIView
 from app.views.portfolio import PortfolioListAPIView
 from app.views.profile import (
@@ -83,7 +82,6 @@ urlpatterns = [
         StudentPasswordChangeAPIView.as_view(),
         name="api-student-profile-password",
     ),
-    path("api/student/news", NewsListAPIView.as_view(), name="api-student-news"),
     path("api/student/coin-products", StudentCoinProductListAPIView.as_view(), name="api-student-coin-products"),
     path(
         "api/student/coin-products/<uuid:id>/",
@@ -149,7 +147,6 @@ urlpatterns = [
     path("api/mentors", MentorListAPIView.as_view(), name="api-mentors"),
     path("api/portfolios", PortfolioListAPIView.as_view(), name="api-portfolios"),
     path("api/month-heroes", MonthHeroListAPIView.as_view(), name="api-month-heroes"),
-    path("api/news", PublicNewsListAPIView.as_view(), name="api-news"),
 ]
 
 
@@ -180,7 +177,6 @@ urlpatterns += [
     path("auth/sms/resend/", _hidden_view(FrontendResendSmsAPIView), name="compat-frontend-resend-sms-slash"),
     path("api/student/dashboard/", _hidden_view(StudentDashboardAPIView), name="compat-api-student-dashboard-slash"),
     path("api/student/profile/", _hidden_view(StudentProfileAPIView), name="compat-api-student-profile-slash"),
-    path("api/student/news/", _hidden_view(NewsListAPIView), name="compat-api-student-news-slash"),
     path("api/student/marks/", _hidden_view(StudentMarksAPIView), name="compat-api-student-marks-slash"),
     path(
         "api/student/coin-products/",
@@ -238,7 +234,6 @@ urlpatterns += [
     path("api/mentors/", _hidden_view(MentorListAPIView), name="compat-api-mentors-slash"),
     path("api/portfolios/", _hidden_view(PortfolioListAPIView), name="compat-api-portfolios-slash"),
     path("api/month-heroes/", _hidden_view(MonthHeroListAPIView), name="compat-api-month-heroes-slash"),
-    path("api/news/", _hidden_view(PublicNewsListAPIView), name="compat-api-news-slash"),
 
     # Eski auth va student integratsiyalari
     path("auth/enter-password/", _hidden_view(EnterPasswordAPIView), name="compat-enter-password"),
@@ -258,7 +253,6 @@ urlpatterns += [
         _hidden_view(StudentPasswordChangeAPIView),
         name="compat-student-password-change",
     ),
-    path("student/news/", _hidden_view(NewsListAPIView), name="compat-news-list"),
     path(
         "student/coin-products/",
         _hidden_view(StudentCoinProductListAPIView),

@@ -49,6 +49,7 @@ MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     'django.contrib.sessions.middleware.SessionMiddleware',
     "django.middleware.locale.LocaleMiddleware",
+    "app.middleware.AdminUzbekLocaleMiddleware",
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -72,7 +73,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:8000",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
-    'https://pdp-junior-test.netlify.app/'
+    'https://pdp-junior-test.netlify.app'
 ]
 CORS_ALLOW_CREDENTIALS = False
 
@@ -152,6 +153,7 @@ LANGUAGES = [
 QUESTION_LANGS = ("uz", "ru", "en")
 
 TIME_ZONE = 'Asia/Tashkent'
+LANGUAGE_CODE = 'uz'
 USE_I18N = True
 USE_TZ = True
 
