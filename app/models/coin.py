@@ -13,6 +13,7 @@ class CoinProduct(BaseModel):
     description = models.TextField()
     price = models.PositiveIntegerField()
     image = models.ImageField(upload_to="coin-products/", blank=True, null=True)
+    image_url = models.CharField(max_length=500, blank=True, default="")
     category = models.CharField(
         max_length=20,
         choices=CategoryChoices.choices,
@@ -36,6 +37,14 @@ class CoinProduct(BaseModel):
 
     def __str__(self):
         return f"{self.name} - {self.price} coin"
+
+    def get_display_image_url(self, request=None):
+        if self.image:
+            url = self.image.url
+            if request:
+                return request.build_absolute_uri(url)
+            return url
+        return self.image_url or None
 
 
 class CoinOrder(BaseModel):

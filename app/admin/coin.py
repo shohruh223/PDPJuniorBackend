@@ -11,7 +11,7 @@ class CoinProductAdmin(PrettyImportExportModelAdmin):
 
     list_display = ["name", "category", "price", "stock", "emoji", "is_active", "created_at"]
     list_filter = ["category", "is_active", "created_at"]
-    search_fields = ["name", "description"]
+    search_fields = ["name", "description", "image_url"]
     readonly_fields = ["id", "created_at", "updated_at"]
 
 

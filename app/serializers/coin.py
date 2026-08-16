@@ -26,12 +26,4 @@ class CoinProductSerializer(serializers.ModelSerializer):
         return obj.stock > 0
 
     def get_image(self, obj):
-        request = self.context.get("request")
-
-        if not obj.image:
-            return None
-
-        if request:
-            return request.build_absolute_uri(obj.image.url)
-
-        return obj.image.url
+        return obj.get_display_image_url(self.context.get("request"))
