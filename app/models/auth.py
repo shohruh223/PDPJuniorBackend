@@ -209,6 +209,8 @@ class StudentProfile(BaseModel):
     class Meta:
         db_table = "student_profiles"
         ordering = ["-created_at"]
+        verbose_name = "Student profili"
+        verbose_name_plural = "Student profillari"
         indexes = [
             models.Index(fields=["group_name"]),
             models.Index(fields=["course"]),

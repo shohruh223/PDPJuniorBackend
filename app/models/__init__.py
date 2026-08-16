@@ -5,7 +5,6 @@ from .mentors import Mentor
 from .branch import Branch
 from .portfolio import Portfolio
 from .month_hero import MonthHero
-from .news import News
 from .coin import CoinProduct, CoinOrder
 from .gallery import GalleryPost
 from .payment import StudentPaymentHistory

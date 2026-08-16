@@ -1,0 +1,156 @@
+{% extends "admin/change_list.html" %}
+{% load i18n static %}
+
+{% block bodyclass %}{{ block.super }} pdp-user-catalog{% endblock %}
+{% block content_title %}{% endblock %}
+{% block object-tools %}{% endblock %}
+{% block object-tools-items %}{% endblock %}
+{% block search %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs pdp-catalog-breadcrumbs">
+    <a href="{{ branches_url }}">Foydalanuvchilar</a>
+    {% if no_profile %}
+        <span>›</span>
+        <strong>Adminlar</strong>
+    {% else %}
+        {% if selected_branch %}
+            <span>›</span>
+            {% if catalog_stage == "groups" %}
+                <strong>{{ selected_branch.name }}</strong>
+            {% else %}
+                <a href="{{ groups_url }}">{{ selected_branch.name }}</a>
+            {% endif %}
+        {% endif %}
+        {% if selected_group_label %}
+            <span>›</span>
+            <strong>{{ selected_group_label }}</strong>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block content %}
+{% if is_popup %}
+    {{ block.super }}
+{% elif catalog_stage == "users" %}
+    <header class="pdp-catalog__header pdp-user-catalog__result-header">
+        <div>
+            <span class="pdp-eyebrow">Foydalanuvchilar</span>
+            <h1>{{ title }}</h1>
+            <p>
+                {% if no_profile %}
+                    Tizim administratorlari.
+                {% elif selected_branch %}
+                    {{ selected_branch.name }}{% if selected_group_label %} · {{ selected_group_label }}{% endif %}
+                {% endif %}
+            </p>
+        </div>
+        <div class="pdp-catalog__header-actions">
+            {% if has_import_permission %}
+                <a class="pdp-hero-action-button pdp-hero-action-button--import" href="{% url 'admin:app_user_import' %}">
+                    <span>↓</span> Import
+                </a>
+            {% endif %}
+            {% if has_export_permission %}
+                <a class="pdp-hero-action-button pdp-hero-action-button--export" href="{% url 'admin:app_user_export' %}">
+                    <span>↑</span> Export
+                </a>
+            {% endif %}
+            {% if has_add_permission %}
+                <a class="pdp-catalog__add" href="{% url 'admin:app_user_add' %}{% querystring %}">+ Foydalanuvchi qo‘shish</a>
+            {% endif %}
+        </div>
+    </header>
+    {{ block.super }}
+{% else %}
+<div id="content-main" class="pdp-catalog pdp-user-catalog">
+    <header class="pdp-catalog__header">
+        <div>
+            <span class="pdp-eyebrow">Foydalanuvchilar</span>
+            {% if catalog_stage == "branches" %}
+                <h1>Filiallar</h1>
+                <p>Filialni tanlang va shu filialdagi guruhlarni ko‘ring.</p>
+            {% else %}
+                <h1>{{ selected_branch.name }} guruhlari</h1>
+                <p>Guruhni tanlang va shu guruhdagi foydalanuvchilarni ko‘ring.</p>
+            {% endif %}
+        </div>
+        <div class="pdp-catalog__header-actions">
+            {% if has_add_permission %}
+                <a class="pdp-catalog__add" href="{% url 'admin:app_user_add' %}{% querystring %}">+ Foydalanuvchi qo‘shish</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="pdp-catalog__grid">
+        {% if catalog_stage == "branches" %}
+            {% for branch in catalog_branches %}
+                <article class="pdp-catalog-card pdp-catalog-card--branch">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_user_changelist' %}?branch={{ branch.pk }}">
+                        <span class="pdp-catalog-card__number">{{ forloop.counter|stringformat:"02d" }}</span>
+                        <span class="pdp-catalog-card__icon">⌂</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>Filial</small>
+                            <strong>{{ branch.name }}</strong>
+                            <small>{{ branch.student_count }} ta foydalanuvchi</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                </article>
+            {% empty %}
+                <div class="pdp-catalog-empty">Hozircha filiallar mavjud emas.</div>
+            {% endfor %}
+
+            {% if no_profile_count %}
+                <article class="pdp-catalog-card pdp-catalog-card--muted">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_user_changelist' %}?no_profile=1">
+                        <span class="pdp-catalog-card__icon">⚙</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>Tizim</small>
+                            <strong>Adminlar</strong>
+                            <small>{{ no_profile_count }} ta admin</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                </article>
+            {% endif %}
+
+        {% else %}
+            {% for item in catalog_groups %}
+                <article class="pdp-catalog-card pdp-catalog-card--group">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_user_changelist' %}?branch={{ request.GET.branch }}&amp;group={{ item.group_name|urlencode }}">
+                        <span class="pdp-catalog-card__number">{{ forloop.counter|stringformat:"02d" }}</span>
+                        <span class="pdp-catalog-card__icon">☰</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>Guruh</small>
+                            <strong>{{ item.group_name }}</strong>
+                            <small>{{ item.student_count }} ta foydalanuvchi</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                </article>
+            {% empty %}
+                {% if not ungrouped_count %}
+                    <div class="pdp-catalog-empty">Bu filialda hozircha guruhlar mavjud emas.</div>
+                {% endif %}
+            {% endfor %}
+
+            {% if ungrouped_count %}
+                <article class="pdp-catalog-card pdp-catalog-card--muted">
+                    <a class="pdp-catalog-card__main" href="{% url 'admin:app_user_changelist' %}?branch={{ request.GET.branch }}&amp;group={{ empty_key }}">
+                        <span class="pdp-catalog-card__icon">?</span>
+                        <span class="pdp-catalog-card__copy">
+                            <small>Boshqa</small>
+                            <strong>Guruhsiz</strong>
+                            <small>{{ ungrouped_count }} ta foydalanuvchi</small>
+                        </span>
+                        <span class="pdp-catalog-card__arrow">→</span>
+                    </a>
+                </article>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

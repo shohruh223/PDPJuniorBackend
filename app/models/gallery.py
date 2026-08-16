@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 from app.models.auth import BaseModel
 
@@ -30,6 +31,12 @@ class GalleryPost(BaseModel):
         verbose_name = "Galereya posti"
         verbose_name_plural = "Galereya postlari"
         ordering = ["sort_order", "-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.date:
+            when = self.created_at or timezone.now()
+            self.date = timezone.localtime(when).strftime("%d.%m.%Y")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         title = self.title or {}

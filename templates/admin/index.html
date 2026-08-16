@@ -15,7 +15,7 @@
             <h1>Xush kelibsiz, <span>{{ request.user.full_name|default:request.user.phone_number }}</span></h1>
             <p>Ta’lim jarayoni, o‘quvchilar va kontentni yagona professional panel orqali boshqaring.</p>
             <div class="pdp-dashboard-welcome__actions">
-                <a href="{% url 'admin:app_studentprofile_changelist' %}">Studentlar <span>→</span></a>
+                <a href="{% url 'admin:app_user_changelist' %}">Foydalanuvchilar <span>→</span></a>
                 <a href="{% url 'admin:app_monthhero_changelist' %}">Oy qahramonlari <span>→</span></a>
             </div>
         </div>
@@ -57,7 +57,7 @@
                                     {% elif model.object_name == "Branch" %}⌂
                                     {% elif model.object_name == "CoinProduct" %}◆
                                     {% elif model.object_name == "StudentPaymentHistory" %}▣
-                                    {% elif model.object_name == "GalleryPost" or model.object_name == "Portfolio" or model.object_name == "News" %}▧
+                                    {% elif model.object_name == "GalleryPost" or model.object_name == "Portfolio" %}▧
                                     {% elif model.object_name == "User" or model.object_name == "StudentProfile" or model.object_name == "Mentor" %}♙
                                     {% else %}◇{% endif %}
                                 </span>

@@ -84,8 +84,8 @@ class StudentPaymentHistory(BaseModel):
     class Meta:
         db_table = "student_payment_histories"
         ordering = ["-created_date", "-date", "-created_at"]
-        verbose_name = "Student payment history"
-        verbose_name_plural = "Student payment histories"
+        verbose_name = "To‘lov tarixi"
+        verbose_name_plural = "To‘lovlar tarixi"
 
         constraints = [
             models.UniqueConstraint(

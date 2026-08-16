@@ -7,13 +7,12 @@ from import_export.fields import Field
 from import_export.formats import base_formats
 from import_export.widgets import ForeignKeyWidget, Widget
 
-from app.admin.mixins import RowActionsAdminMixin
+from app.admin.mixins import HideChangelistFilterMixin, RowActionsAdminMixin
 from app.models.auth import User, StudentProfile
 from app.models.branch import Branch
 from app.models.coin import CoinProduct
 from app.models.mentors import Mentor
 from app.models.month_hero import MonthHero
-from app.models.news import News
 from app.models.payment import StudentPaymentHistory
 from app.models.portfolio import Portfolio
 from app.models.question import Course, Module, Lesson, Question
@@ -72,7 +71,7 @@ class PrettyJSON(base_formats.JSON):
         )
 
 
-class PrettyImportExportModelAdmin(ImportExportModelAdmin):
+class PrettyImportExportModelAdmin(HideChangelistFilterMixin, ImportExportModelAdmin):
     """
     Admin panelda faqat JSON import/export ishlatish uchun custom admin.
     """
@@ -181,15 +180,6 @@ class MentorResource(SafeDynamicModelResource):
 class MonthHeroResource(SafeDynamicModelResource):
     class Meta:
         model = MonthHero
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class NewsResource(SafeDynamicModelResource):
-    class Meta:
-        model = News
         import_id_fields = ("id",)
         skip_unchanged = True
         report_skipped = True

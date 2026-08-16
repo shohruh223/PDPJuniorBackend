@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Count
 from django.utils import timezone
 
 from app.models import (
@@ -15,7 +16,6 @@ from app.models import (
     Mentor,
     Module,
     MonthHero,
-    News,
     Portfolio,
     Question,
     StudentPaymentHistory,
@@ -169,8 +169,10 @@ class Command(BaseCommand):
         self.seed_heroes(profiles)
         self.seed_shop()
         self.seed_portfolios()
-        self.seed_gallery_and_news()
+        self.seed_gallery()
         self.seed_marks_and_dashboard(courses, branches)
+        self.assign_unbranched_students(branches)
+        self.seed_group_classmates()
         self.stdout.write(self.style.SUCCESS("Frontend statik ma'lumotlari database'ga muvaffaqiyatli yozildi."))
 
     def seed_courses(self):
@@ -253,7 +255,6 @@ class Command(BaseCommand):
                     "students_count": "50+",
                     "working_period_start": date(2023, 1, 1) + timedelta(days=index),
                     "avatar": {"url": avatar},
-                    "socials": {},
                     "is_active": True,
                 },
             )
@@ -368,7 +369,7 @@ class Command(BaseCommand):
                 },
             )
 
-    def seed_gallery_and_news(self):
+    def seed_gallery(self):
         for order, (category, icon, shown_date, views, image, title, description) in enumerate(GALLERY, 1):
             GalleryPost.objects.update_or_create(
                 title=i18n(title),
@@ -383,17 +384,6 @@ class Command(BaseCommand):
                     "description": i18n(description),
                     "media": [{"type": "image", "src": image, "contain": image.endswith(".svg")}],
                     "sort_order": order,
-                    "is_active": True,
-                },
-            )
-            News.objects.update_or_create(
-                title=title,
-                defaults={
-                    "date": shown_date,
-                    "type": News.TypeChoices.EVENT,
-                    "description": description,
-                    "color": "#01E0EE",
-                    "icon": icon,
                     "is_active": True,
                 },
             )
@@ -471,3 +461,84 @@ class Command(BaseCommand):
                 "raw_data": {"source": "frontend-static-seed"},
             },
         )
+
+    def assign_unbranched_students(self, branches):
+        StudentProfile.objects.filter(branch__isnull=True).update(
+            branch=branches["Chilonzor"]
+        )
+
+    def seed_group_classmates(self):
+        User = get_user_model()
+        first_names = [
+            "Azizbek", "Dilshod", "Jamshid", "Sardor", "Ulugbek",
+            "Nodira", "Lola", "Gulnora", "Dilnoza", "Shahzoda",
+        ]
+        last_names = [
+            "Rahimov", "Tursunov", "Ergashev", "Sattorov", "Ganiyev",
+            "Saidova", "Nazarova", "Qodirova", "Karimova", "Aliyeva",
+        ]
+        avatars = [
+            "malika.svg", "jasur.svg", "farzona.svg", "bekzod.svg",
+            "nilufar.svg", "omadbek.svg",
+        ]
+        target_size = 10
+        groups = list(
+            StudentProfile.objects.exclude(branch__isnull=True)
+            .exclude(group_name="")
+            .values("branch_id", "group_name")
+            .annotate(student_count=Count("id"))
+            .order_by("branch_id", "group_name")
+        )
+        phone_index = 1
+        for group in groups:
+            sample = (
+                StudentProfile.objects.filter(
+                    branch_id=group["branch_id"],
+                    group_name=group["group_name"],
+                )
+                .exclude(course__isnull=True)
+                .first()
+                or StudentProfile.objects.filter(
+                    branch_id=group["branch_id"],
+                    group_name=group["group_name"],
+                ).first()
+            )
+            course_id = sample.course_id if sample else None
+            needed = max(0, target_size - group["student_count"])
+            for offset in range(needed):
+                while User.objects.filter(phone_number=f"+99888{phone_index:07d}").exists():
+                    phone_index += 1
+                phone = f"+99888{phone_index:07d}"
+                first = first_names[offset % len(first_names)]
+                last = last_names[(offset + phone_index) % len(last_names)]
+                user, created = User.objects.get_or_create(
+                    phone_number=phone,
+                    defaults={
+                        "first_name": first,
+                        "last_name": last,
+                        "role": User.RoleChoices.STUDENT,
+                    },
+                )
+                if created:
+                    user.set_unusable_password()
+                user.first_name = first
+                user.last_name = last
+                user.role = User.RoleChoices.STUDENT
+                user.is_active = True
+                user.save()
+                StudentProfile.objects.update_or_create(
+                    user=user,
+                    defaults={
+                        "group_name": group["group_name"],
+                        "course_id": course_id,
+                        "branch_id": group["branch_id"],
+                        "api_score": 120 + ((phone_index * 17) % 380),
+                        "local_test_score": 40 + ((phone_index * 11) % 160),
+                        "api_coin": 80 + ((phone_index * 13) % 220),
+                        "test_coin": 0,
+                        "attendance_average_percent": 72 + ((phone_index * 7) % 25),
+                        "streak_days": 3 + (phone_index % 12),
+                        "avatar_url": f"static/img/avatars/{avatars[offset % len(avatars)]}",
+                    },
+                )
+                phone_index += 1
