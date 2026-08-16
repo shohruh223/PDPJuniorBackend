@@ -10,9 +10,7 @@ from app.services.portal.shop_notification_service import (
 
 
 def serialize_shop_product(product: CoinProduct, request=None) -> dict:
-    image_url = None
-    if product.image:
-        image_url = request.build_absolute_uri(product.image.url) if request else product.image.url
+    image_url = product.get_display_image_url(request)
 
     return {
         "id": str(product.id),
