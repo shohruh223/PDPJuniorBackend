@@ -134,3 +134,99 @@ class StudentPaymentHistory(BaseModel):
             )
         except (ValueError, TypeError, OSError, OverflowError):
             return None
+
+
+class StudentInvoice(BaseModel):
+    student_profile = models.ForeignKey(
+        StudentProfile,
+        on_delete=models.CASCADE,
+        related_name="invoices",
+    )
+
+    external_id = models.CharField(
+        max_length=128,
+        db_index=True,
+        help_text="PDP invoiceId",
+    )
+
+    invoice_number = models.CharField(
+        max_length=128,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+
+    invoice_status = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+
+    invoice_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    paid_invoice_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    debt_amount = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=Decimal("0.00"),
+    )
+
+    time_table_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    time_table_position = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_index=True,
+    )
+
+    group_name = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+    )
+
+    raw_data = models.JSONField(
+        default=dict,
+        blank=True,
+    )
+
+    class Meta:
+        db_table = "student_invoices"
+        ordering = ["-updated_at", "-created_at"]
+        verbose_name = "Student invoysi"
+        verbose_name_plural = "Student invoyslari"
+
+        constraints = [
+            models.UniqueConstraint(
+                fields=["student_profile", "external_id"],
+                name="unique_student_invoice_external_id",
+            ),
+        ]
+
+        indexes = [
+            models.Index(fields=["student_profile", "invoice_number"]),
+            models.Index(fields=["student_profile", "invoice_status"]),
+            models.Index(fields=["student_profile", "time_table_position"]),
+        ]
+
+    def __str__(self):
+        return self.invoice_number or self.external_id
+
+    @staticmethod
+    def to_decimal(value) -> Decimal:
+        return StudentPaymentHistory.to_decimal(value)

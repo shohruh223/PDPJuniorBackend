@@ -7,5 +7,5 @@ from .portfolio import Portfolio
 from .month_hero import MonthHero
 from .coin import CoinProduct, CoinOrder
 from .gallery import GalleryPost
-from .payment import StudentPaymentHistory
+from .payment import StudentInvoice, StudentPaymentHistory
 from .marks import StudentMark

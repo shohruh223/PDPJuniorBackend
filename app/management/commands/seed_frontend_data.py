@@ -18,6 +18,7 @@ from app.models import (
     MonthHero,
     Portfolio,
     Question,
+    StudentInvoice,
     StudentPaymentHistory,
     StudentProfile,
 )
@@ -671,6 +672,22 @@ class Command(BaseCommand):
                 "created_date": timezone.make_aware(datetime(2026, 5, 5, 10, 0)),
                 "cashier": "Online",
                 "canceled": False,
+                "raw_data": {"source": "frontend-static-seed"},
+            },
+        )
+
+        StudentInvoice.objects.update_or_create(
+            student_profile=toxir,
+            external_id="8b4b32fe-9bd1-43a7-af11-8a61858c59a9",
+            defaults={
+                "invoice_number": "INV-A0126130",
+                "invoice_status": "PENDING",
+                "invoice_amount": Decimal("1090000.00"),
+                "paid_invoice_amount": Decimal("0.00"),
+                "debt_amount": Decimal("1090000.00"),
+                "time_table_name": "Time table 3",
+                "time_table_position": "CURRENT",
+                "group_name": group,
                 "raw_data": {"source": "frontend-static-seed"},
             },
         )
