@@ -13,7 +13,7 @@ from app.models.branch import Branch
 from app.models.coin import CoinProduct
 from app.models.mentors import Mentor
 from app.models.month_hero import MonthHero
-from app.models.payment import StudentPaymentHistory
+from app.models.payment import StudentInvoice, StudentPaymentHistory
 from app.models.portfolio import Portfolio
 from app.models.question import Course, Module, Lesson, Question
 from app.models.test import TestSession, TestSessionQuestion, TestSessionAnswer
@@ -189,6 +189,15 @@ class MonthHeroResource(SafeDynamicModelResource):
 class StudentPaymentHistoryResource(SafeDynamicModelResource):
     class Meta:
         model = StudentPaymentHistory
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class StudentInvoiceResource(SafeDynamicModelResource):
+    class Meta:
+        model = StudentInvoice
         import_id_fields = ("id",)
         skip_unchanged = True
         report_skipped = True

@@ -4,7 +4,7 @@ from .portfolio import PortfolioAdmin
 from .month_hero import MonthHeroAdmin
 from .coin import CoinProductAdmin, CoinOrderAdmin
 from .gallery import GalleryPostAdmin
-from .payment import StudentPaymentHistoryAdmin
+from .payment import StudentInvoiceAdmin, StudentPaymentHistoryAdmin
 from .marks import StudentMarkAdmin
 from .question import *
 from .auth import *

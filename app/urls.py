@@ -17,7 +17,10 @@ from app.views.frontend_auth_view import (
 )
 from app.views.mentor import MentorListAPIView
 from app.views.month_hero import MonthHeroListAPIView
-from app.views.payment import StudentPaymentHistoryListAPIView
+from app.views.payment import (
+    StudentInvoiceListAPIView,
+    StudentPaymentHistoryListAPIView,
+)
 from app.views.portfolio import PortfolioListAPIView
 from app.views.profile import (
     StudentProfileImageUpdateAPIView,
@@ -92,6 +95,11 @@ urlpatterns = [
         "api/student/payment-histories",
         StudentPaymentHistoryListAPIView.as_view(),
         name="api-student-payment-histories",
+    ),
+    path(
+        "api/student/invoices",
+        StudentInvoiceListAPIView.as_view(),
+        name="api-student-invoices",
     ),
     path("api/student/marks", StudentMarksAPIView.as_view(), name="api-student-marks"),
     # Darslar va testlar
@@ -189,6 +197,11 @@ urlpatterns += [
         name="compat-api-student-payment-histories-slash",
     ),
     path(
+        "api/student/invoices/",
+        _hidden_view(StudentInvoiceListAPIView),
+        name="compat-api-student-invoices-slash",
+    ),
+    path(
         "api/student/month-heroes/",
         _hidden_view(MonthHeroListAPIView),
         name="compat-api-student-month-heroes-slash",
@@ -267,6 +280,11 @@ urlpatterns += [
         "student/payment-histories/",
         _hidden_view(StudentPaymentHistoryListAPIView),
         name="compat-student-payment-histories",
+    ),
+    path(
+        "student/invoices/",
+        _hidden_view(StudentInvoiceListAPIView),
+        name="compat-student-invoices",
     ),
     path("student/month-heroes/", _hidden_view(MonthHeroListAPIView), name="compat-month-heroes"),
     path(

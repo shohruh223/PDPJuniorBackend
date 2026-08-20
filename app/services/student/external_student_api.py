@@ -69,3 +69,6 @@ class PDPStudentAPIClient:
 
     def get_student_payment_history(self, student_id: str) -> dict:
         return self._get(f"education/v1/junior-app/payment-history/{student_id}")
+
+    def get_student_invoices(self, student_id: str) -> dict:
+        return self._get(f"education/v1/junior-app/student-invoices/{student_id}")

@@ -6,9 +6,13 @@ from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
 from app.models.auth import StudentProfile
-from app.models.payment import StudentPaymentHistory
+from app.models.payment import StudentInvoice, StudentPaymentHistory
 from app.permissions import IsStudentUserRole
-from app.serializers.payment import StudentPaymentHistorySerializer
+from app.serializers.payment import (
+    StudentInvoiceSerializer,
+    StudentPaymentHistorySerializer,
+)
+from app.services.student.invoice_service import fetch_and_sync_student_invoices
 from app.services.student.payment_history_service import (
     fetch_and_sync_student_payment_histories,
 )
@@ -19,15 +23,15 @@ class StudentPaymentHistoryListAPIView(APIView):
 
     @swagger_auto_schema(
         tags=["Student / Payments"],
-        operation_summary="Student to‘lovlari tarixi",
+        operation_summary="Student to'lovlari tarixi",
         operation_description=(
-            "Autentifikatsiya qilingan studentning to‘lov tarixini tashqi manba bilan sinxronlashtiradi va "
+            "Autentifikatsiya qilingan studentning to'lov tarixini tashqi manba bilan sinxronlashtiradi va "
             "eng yangi yozuvdan boshlab qaytaradi. Bearer token yuboring; query parametrlari kerak emas. "
             "`sync_warning` sinxronlashdagi ogohlantirishni saqlashi mumkin, ammo lokal tarix baribir qaytariladi."
         ),
         responses={
             200: openapi.Response(
-                "To‘lov tarixi olindi.",
+                "To'lov tarixi olindi.",
                 openapi.Schema(
                     type=openapi.TYPE_OBJECT,
                     required=["success", "message", "data", "sync_warning"],
@@ -62,7 +66,7 @@ class StudentPaymentHistoryListAPIView(APIView):
                         "sync_warning": openapi.Schema(
                             type=openapi.TYPE_STRING,
                             x_nullable=True,
-                            description="Sinxronlash muvaffaqiyatli bo‘lsa null.",
+                            description="Sinxronlash muvaffaqiyatli bo'lsa null.",
                         ),
                     },
                 ),
@@ -111,6 +115,130 @@ class StudentPaymentHistoryListAPIView(APIView):
             {
                 "success": True,
                 "message": "Payment history ma'lumotlari",
+                "data": serializer.data,
+                "sync_warning": sync_warning,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class StudentInvoiceListAPIView(APIView):
+    permission_classes = [IsAuthenticated, IsStudentUserRole]
+
+    @swagger_auto_schema(
+        tags=["Student / Payments"],
+        operation_summary="Student invoyslari",
+        operation_description=(
+            "Autentifikatsiya qilingan studentning joriy/pending invoyslarini tashqi PDP "
+            "`student-invoices` manbasi bilan sinxronlashtiradi va qaytaradi. "
+            "Qaysi oyga to'lash (`timeTableName`), invoys raqami, status va qarz summasi shu yerda. "
+            "`sync_warning` sinxronlashdagi ogohlantirishni saqlashi mumkin, ammo lokal data baribir qaytariladi."
+        ),
+        responses={
+            200: openapi.Response(
+                "Invoyslar olindi.",
+                openapi.Schema(
+                    type=openapi.TYPE_OBJECT,
+                    required=["success", "message", "data", "sync_warning"],
+                    properties={
+                        "success": openapi.Schema(type=openapi.TYPE_BOOLEAN, example=True),
+                        "message": openapi.Schema(type=openapi.TYPE_STRING),
+                        "data": openapi.Schema(
+                            type=openapi.TYPE_ARRAY,
+                            items=openapi.Schema(
+                                type=openapi.TYPE_OBJECT,
+                                properties={
+                                    "id": openapi.Schema(type=openapi.TYPE_STRING),
+                                    "timeTableName": openapi.Schema(
+                                        type=openapi.TYPE_STRING,
+                                        example="Time table 3",
+                                    ),
+                                    "groupName": openapi.Schema(
+                                        type=openapi.TYPE_STRING,
+                                        example="P-18",
+                                    ),
+                                    "timeTablePosition": openapi.Schema(
+                                        type=openapi.TYPE_STRING,
+                                        example="CURRENT",
+                                    ),
+                                    "invoiceId": openapi.Schema(
+                                        type=openapi.TYPE_STRING,
+                                        example="8b4b32fe-9bd1-43a7-af11-8a61858c59a9",
+                                    ),
+                                    "invoiceNumber": openapi.Schema(
+                                        type=openapi.TYPE_STRING,
+                                        example="INV-A0126130",
+                                    ),
+                                    "invoiceStatus": openapi.Schema(
+                                        type=openapi.TYPE_STRING,
+                                        example="PENDING",
+                                    ),
+                                    "invoiceAmount": openapi.Schema(
+                                        type=openapi.TYPE_NUMBER,
+                                        example=1090000.0,
+                                    ),
+                                    "paidInvoiceAmount": openapi.Schema(
+                                        type=openapi.TYPE_NUMBER,
+                                        example=0.0,
+                                    ),
+                                    "debtAmount": openapi.Schema(
+                                        type=openapi.TYPE_NUMBER,
+                                        example=1090000.0,
+                                    ),
+                                },
+                            ),
+                        ),
+                        "sync_warning": openapi.Schema(
+                            type=openapi.TYPE_STRING,
+                            x_nullable=True,
+                            description="Sinxronlash muvaffaqiyatli bo'lsa null.",
+                        ),
+                    },
+                ),
+            ),
+            401: openapi.Response("Autentifikatsiya talab qilinadi."),
+            403: openapi.Response("Faqat studentlar uchun."),
+            404: openapi.Response(
+                "Student profil topilmadi.",
+                examples={
+                    "application/json": {
+                        "success": False,
+                        "message": "Student profile topilmadi.",
+                    }
+                },
+            ),
+        },
+    )
+    def get(self, request, *args, **kwargs):
+        try:
+            student_profile = StudentProfile.objects.get(user=request.user)
+        except StudentProfile.DoesNotExist:
+            return Response(
+                {
+                    "success": False,
+                    "message": "Student profile topilmadi.",
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        _, sync_warning = fetch_and_sync_student_invoices(student_profile)
+
+        invoices = StudentInvoice.objects.filter(
+            student_profile=student_profile,
+        ).order_by(
+            "-updated_at",
+            "-created_at",
+        )
+
+        serializer = StudentInvoiceSerializer(
+            invoices,
+            many=True,
+        )
+
+        return Response(
+            {
+                "success": True,
+                "message": "Student invoices ma'lumotlari",
                 "data": serializer.data,
                 "sync_warning": sync_warning,
             },
