@@ -1,9 +1,15 @@
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 from rest_framework import serializers
 import random
 from app.models.question import Lesson, Question, Module
-from app.models.test import TestSession, TestSessionQuestion, TestSessionAnswer
+from app.models.test import (
+    StudentQuestionReward,
+    TestSession,
+    TestSessionQuestion,
+    TestSessionAnswer,
+)
 from app.serializers.question import CourseSerializer, LessonSerializer
 from app.services.student.test_progress_service import is_module_unlocked
 
@@ -53,6 +59,18 @@ class SessionQuestionSerializer(serializers.ModelSerializer):
         fields = ["id", "order", "question"]
 
     def get_question(self, obj):
+        snapshot = obj.question_snapshot or {}
+        if snapshot:
+            lang = self.context.get("language") or "uz"
+            return {
+                "id": snapshot.get("id", obj.question_id),
+                "text": pick_lang_value(snapshot.get("text", {}), lang),
+                "image_url": pick_lang_value(snapshot.get("images", {}), lang),
+                "options": {
+                    key: pick_lang_value(value, lang)
+                    for key, value in (snapshot.get("options", {}) or {}).items()
+                },
+            }
         return AllQuestionPublicSerializer(
             obj.question,
             context=self.context,
@@ -65,7 +83,6 @@ class TestSessionSerializer(serializers.ModelSerializer):
     course = serializers.SerializerMethodField()
     module = serializers.SerializerMethodField()
     remaining_seconds = serializers.IntegerField(read_only=True)
-    answered_count = serializers.SerializerMethodField()
 
     class Meta:
         model = TestSession
@@ -82,6 +99,11 @@ class TestSessionSerializer(serializers.ModelSerializer):
             "remaining_seconds",
             "answered_count",
             "is_finished",
+            "correct_count",
+            "wrong_count",
+            "unanswered_count",
+            "percent",
+            "finalized_at",
         ]
 
     def get_course(self, obj):
@@ -97,9 +119,6 @@ class TestSessionSerializer(serializers.ModelSerializer):
                 "order": obj.lesson.module.order,
             }
         return None
-
-    def get_answered_count(self, obj):
-        return obj.answers.count()
 
 
 class StudentLessonItemSerializer(serializers.ModelSerializer):
@@ -255,6 +274,24 @@ class StartTestSessionSerializer(serializers.Serializer):
         questions_count = validated_data["questions_count"]
         duration_minutes = validated_data["duration_minutes"]
 
+        # Bir student profilini lock qilish parallel start requestlarni
+        # ketma-ketlashtiradi. Pastdagi unique constraint esa ikkinchi himoya.
+        from app.models.auth import StudentProfile
+
+        StudentProfile.objects.select_for_update().get(user=user)
+        active_session = TestSession.objects.filter(
+            student=user,
+            lesson=lesson,
+            is_finished=False,
+        ).first()
+        if active_session:
+            if active_session.is_expired():
+                active_session.finish()
+            else:
+                raise serializers.ValidationError({
+                    "session": "Bu lesson bo‘yicha tugallanmagan test session mavjud."
+                })
+
         now = timezone.now()
 
         session = TestSession.objects.create(
@@ -271,6 +308,13 @@ class StartTestSessionSerializer(serializers.Serializer):
                 session=session,
                 question=question,
                 order=index,
+                question_snapshot={
+                    "id": question.id,
+                    "text": question.text,
+                    "images": question.images,
+                    "options": question.options,
+                },
+                correct_option_snapshot=question.correct_option,
             )
             for index, question in enumerate(questions, start=1)
         ])
@@ -304,6 +348,11 @@ class SubmitAnswerSerializer(serializers.Serializer):
         session_item = TestSessionQuestion.objects.select_related("question").filter(
             session=session,
             question_id=question_id,
+        ).only(
+            "id",
+            "correct_option_snapshot",
+            "question_id",
+            "question__correct_option",
         ).first()
 
         if not session_item:
@@ -320,7 +369,8 @@ class SubmitAnswerSerializer(serializers.Serializer):
         session_item = validated_data["session_item"]
         question = session_item.question
         selected_option = validated_data["selected_option"]
-        new_is_correct = question.is_correct(selected_option)
+        correct_option = session_item.correct_option_snapshot or question.correct_option
+        new_is_correct = selected_option == correct_option
 
         answer_obj = (
             TestSessionAnswer.objects
@@ -341,15 +391,43 @@ class SubmitAnswerSerializer(serializers.Serializer):
                 selected_option=selected_option,
                 is_correct=new_is_correct,
             )
+            TestSession.objects.filter(pk=session.pk).update(
+                answered_count=F("answered_count") + 1,
+            )
+            session.answered_count += 1
 
-        if previous_is_correct != new_is_correct:
+        # Coin/score qayta topshirilgan testlardan cheksiz yig'ilmasligi uchun
+        # student bitta savolga faqat bir marta reward oladi. Agar aynan shu
+        # sessionda to'g'ri javobini qaytarib olsa, reward ham qaytariladi.
+        reward_delta = 0
+        if not previous_is_correct and new_is_correct:
+            _, reward_created = StudentQuestionReward.objects.get_or_create(
+                student=session.student,
+                question=question,
+                defaults={"session": session},
+            )
+            if reward_created:
+                reward_delta = 1
+        elif previous_is_correct and not new_is_correct:
+            reward = (
+                StudentQuestionReward.objects.select_for_update()
+                .filter(
+                    student=session.student,
+                    question=question,
+                    session=session,
+                )
+                .first()
+            )
+            if reward:
+                reward.delete()
+                reward_delta = -1
+
+        if reward_delta:
             from app.models.auth import StudentProfile
 
             student_profile = StudentProfile.objects.select_for_update().get(
                 user=session.student
             )
-
-            reward_delta = 1 if new_is_correct else -1
 
             student_profile.local_test_score = max(
                 0,

@@ -1,10 +1,37 @@
+from django.core.cache import cache
 from django.db.models import Count, F
 
 from app.models.question import Module
 from app.models.test import TestSession
+from app.services.student.test_cache_service import (
+    COMPLETED_LESSONS_CACHE_TTL,
+    completed_lessons_cache_key,
+    unlocked_modules_cache_key,
+    UNLOCKED_MODULES_CACHE_TTL,
+)
 
 
-def is_module_completed(user, module):
+def _get_completed_lesson_ids(user, course):
+    cache_key = completed_lessons_cache_key(user.id, course.id)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return set(cached)
+
+    completed = set(
+        TestSession.objects.filter(
+            student=user,
+            lesson__course=course,
+            is_finished=True,
+            answered_count__gte=F("total_questions"),
+        )
+        .values_list("lesson_id", flat=True)
+        .distinct()
+    )
+    cache.set(cache_key, list(completed), COMPLETED_LESSONS_CACHE_TTL)
+    return completed
+
+
+def is_module_completed(user, module, *, completed_lesson_ids=None):
     testable_lesson_ids = list(
         module.lessons.annotate(question_count=Count("questions"))
         .filter(question_count__gt=0)
@@ -14,32 +41,42 @@ def is_module_completed(user, module):
     if not testable_lesson_ids:
         return False
 
-    completed_lesson_ids = set(
-        TestSession.objects.filter(
-            student=user,
-            lesson_id__in=testable_lesson_ids,
-            is_finished=True,
-        )
-        .annotate(answered_count=Count("answers", distinct=True))
-        .filter(answered_count__gte=F("total_questions"))
-        .values_list("lesson_id", flat=True)
-    )
+    if completed_lesson_ids is None:
+        course = module.course
+        completed_lesson_ids = _get_completed_lesson_ids(user, course)
 
     return set(testable_lesson_ids).issubset(completed_lesson_ids)
 
 
-def get_unlocked_module_ids(user, course):
+def _compute_unlocked_module_ids(user, course, completed_lesson_ids):
     unlocked_ids = []
 
     for module in (
         Module.objects.filter(course=course)
+        .select_related("course")
         .order_by("order", "id")
     ):
         unlocked_ids.append(module.pk)
 
-        if not is_module_completed(user, module):
+        if not is_module_completed(
+            user,
+            module,
+            completed_lesson_ids=completed_lesson_ids,
+        ):
             break
 
+    return unlocked_ids
+
+
+def get_unlocked_module_ids(user, course):
+    cache_key = unlocked_modules_cache_key(user.id, course.id)
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return cached
+
+    completed_lesson_ids = _get_completed_lesson_ids(user, course)
+    unlocked_ids = _compute_unlocked_module_ids(user, course, completed_lesson_ids)
+    cache.set(cache_key, unlocked_ids, UNLOCKED_MODULES_CACHE_TTL)
     return unlocked_ids
 
 

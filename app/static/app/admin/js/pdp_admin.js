@@ -70,5 +70,89 @@
         document.querySelectorAll(".messagelist > li").forEach(function (message) {
             message.setAttribute("role", "status");
         });
+
+        initLoginPhonePrefix();
+        initLoginPasswordToggle();
     });
+
+    function digitsOnly(value) {
+        return String(value || "").replace(/\D/g, "");
+    }
+
+    function localPhoneDigits(value) {
+        var digits = digitsOnly(value);
+        if (digits.indexOf("998") === 0) {
+            digits = digits.slice(3);
+        }
+        return digits.slice(0, 9);
+    }
+
+    function formatLocalPhone(digits) {
+        var value = localPhoneDigits(digits);
+        var parts = [];
+        if (value.length > 0) parts.push(value.slice(0, 2));
+        if (value.length > 2) parts.push(value.slice(2, 5));
+        if (value.length > 5) parts.push(value.slice(5, 7));
+        if (value.length > 7) parts.push(value.slice(7, 9));
+        return parts.join(" ");
+    }
+
+    function initLoginPhonePrefix() {
+        var form = document.getElementById("login-form");
+        var input = form && form.querySelector("#id_username");
+        if (!form || !input) return;
+
+        input.setAttribute("inputmode", "numeric");
+        input.setAttribute("autocomplete", "tel");
+        input.setAttribute("placeholder", "90 123 45 67");
+        input.setAttribute("maxlength", "12");
+        input.value = formatLocalPhone(input.value);
+
+        input.addEventListener("input", function () {
+            input.value = formatLocalPhone(input.value);
+        });
+
+        input.addEventListener("paste", function (event) {
+            event.preventDefault();
+            var pasted = (event.clipboardData || window.clipboardData).getData("text");
+            input.value = formatLocalPhone(pasted);
+        });
+
+        form.addEventListener("submit", function () {
+            var local = localPhoneDigits(input.value);
+            if (local) {
+                input.setAttribute("maxlength", "13");
+                input.value = "+998" + local;
+            }
+        });
+    }
+
+    function initLoginPasswordToggle() {
+        var input = document.querySelector("#login-form #id_password");
+        var toggle = document.getElementById("pdp-toggle-password");
+        var icon = toggle && toggle.querySelector(".pdp-login-eye__icon");
+        if (!input || !toggle || !icon) return;
+
+        var eyeOpen =
+            '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8S1 12 1 12Z"/><circle cx="12" cy="12" r="3"/>';
+        var eyeClosed =
+            '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>' +
+            '<path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>' +
+            '<path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>' +
+            '<path d="M1 1l22 22"/>';
+
+        input.setAttribute("placeholder", "Parolingizni kiriting");
+        input.setAttribute("autocomplete", "current-password");
+
+        toggle.addEventListener("click", function () {
+            var show = input.type === "password";
+            input.type = show ? "text" : "password";
+            toggle.setAttribute("aria-pressed", String(show));
+            toggle.setAttribute(
+                "aria-label",
+                show ? "Parolni yashirish" : "Parolni ko‘rsatish"
+            );
+            icon.innerHTML = show ? eyeClosed : eyeOpen;
+        });
+    }
 })();

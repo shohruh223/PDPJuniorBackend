@@ -10,13 +10,20 @@ from import_export.widgets import ForeignKeyWidget, Widget
 from app.admin.mixins import HideChangelistFilterMixin, RowActionsAdminMixin
 from app.models.auth import User, StudentProfile
 from app.models.branch import Branch
-from app.models.coin import CoinProduct
+from app.models.coin import CoinOrder, CoinProduct
+from app.models.gallery import GalleryPost
+from app.models.marks import StudentMark
 from app.models.mentors import Mentor
 from app.models.month_hero import MonthHero
 from app.models.payment import StudentInvoice, StudentPaymentHistory
 from app.models.portfolio import Portfolio
 from app.models.question import Course, Module, Lesson, Question
-from app.models.test import TestSession, TestSessionQuestion, TestSessionAnswer
+from app.models.test import (
+    StudentQuestionReward,
+    TestSession,
+    TestSessionAnswer,
+    TestSessionQuestion,
+)
 
 
 class JSONWidget(Widget):
@@ -312,6 +319,42 @@ class TestSessionQuestionResource(SafeDynamicModelResource):
 class TestSessionAnswerResource(SafeDynamicModelResource):
     class Meta:
         model = TestSessionAnswer
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class StudentQuestionRewardResource(SafeDynamicModelResource):
+    class Meta:
+        model = StudentQuestionReward
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class GalleryPostResource(SafeDynamicModelResource):
+    class Meta:
+        model = GalleryPost
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class StudentMarkResource(SafeDynamicModelResource):
+    class Meta:
+        model = StudentMark
+        import_id_fields = ("id",)
+        skip_unchanged = True
+        report_skipped = True
+        use_bulk = False
+
+
+class CoinOrderResource(SafeDynamicModelResource):
+    class Meta:
+        model = CoinOrder
         import_id_fields = ("id",)
         skip_unchanged = True
         report_skipped = True

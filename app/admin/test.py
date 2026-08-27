@@ -2,11 +2,17 @@ from django.contrib import admin
 
 from app.admin.resources import (
     PrettyImportExportModelAdmin,
+    StudentQuestionRewardResource,
     TestSessionAnswerResource,
     TestSessionQuestionResource,
     TestSessionResource,
 )
-from app.models.test import TestSession, TestSessionAnswer, TestSessionQuestion
+from app.models.test import (
+    StudentQuestionReward,
+    TestSession,
+    TestSessionAnswer,
+    TestSessionQuestion,
+)
 
 
 class TestSessionQuestionInline(admin.TabularInline):
@@ -99,4 +105,16 @@ class TestSessionAnswerAdmin(PrettyImportExportModelAdmin):
         "session__student__phone_number",
         "question__text__uz",
     )
-    autocomplete_fields = ("session", "question")
+
+
+@admin.register(StudentQuestionReward)
+class StudentQuestionRewardAdmin(PrettyImportExportModelAdmin):
+    resource_class = StudentQuestionRewardResource
+    list_display = ("student", "question", "session", "awarded_at")
+    search_fields = (
+        "student__phone_number",
+        "student__first_name",
+        "student__last_name",
+    )
+    autocomplete_fields = ("student", "question", "session")
+    list_select_related = ("student", "question", "session")

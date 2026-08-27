@@ -1,11 +1,14 @@
 from django.contrib import admin
 
 from app.admin.mixins import RowActionsAdminMixin
+from app.admin.resources import PrettyImportExportModelAdmin, StudentMarkResource
 from app.models import StudentMark
 
 
 @admin.register(StudentMark)
-class StudentMarkAdmin(RowActionsAdminMixin, admin.ModelAdmin):
+class StudentMarkAdmin(PrettyImportExportModelAdmin):
+    resource_class = StudentMarkResource
+
     def get_model_perms(self, request):
         return {}
 

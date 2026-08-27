@@ -111,8 +111,8 @@ if DATABASE_URL:
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
-            conn_max_age=600,
-            ssl_require=True,
+            conn_max_age=int(os.getenv("DB_CONN_MAX_AGE", "600")),
+            ssl_require=os.getenv("DB_SSL_REQUIRE", "1") == "1",
         )
     }
 else:
@@ -120,6 +120,76 @@ else:
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
             "NAME": BASE_DIR / "db.sqlite3",
+        }
+    }
+
+# ---------------------------------------------------------------------
+# Redis / Celery / Cache
+# Productionda CELERY_ENABLED=1 qilib worker va beat processlarini ishga tushiring.
+REDIS_URL = os.getenv("REDIS_URL", os.getenv("CELERY_BROKER_URL", "redis://127.0.0.1:6379/0"))
+CELERY_ENABLED = os.getenv("CELERY_ENABLED", "0") == "1"
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", REDIS_URL)
+CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", CELERY_BROKER_URL)
+CELERY_TASK_DEFAULT_QUEUE = "pdp-junior"
+CELERY_TASK_ACKS_LATE = True
+CELERY_TASK_TIME_LIMIT = 120
+CELERY_TASK_SOFT_TIME_LIMIT = 90
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1
+CELERY_RESULT_EXPIRES = int(os.getenv("CELERY_RESULT_EXPIRES", "3600"))
+CELERY_BEAT_SCHEDULE = {
+    "expire-stale-test-sessions": {
+        "task": "app.tasks.expire_stale_test_sessions_task",
+        "schedule": 60 * 5,
+    },
+    "cleanup-test-sessions": {
+        "task": "app.tasks.cleanup_test_sessions_task",
+        "schedule": 60 * 60 * 6,
+    },
+    "dedupe-test-sessions": {
+        "task": "app.tasks.dedupe_test_sessions_task",
+        "schedule": 60 * 60 * 24,
+    },
+    "cleanup-jwt-blacklist": {
+        "task": "app.tasks.cleanup_jwt_blacklist_task",
+        "schedule": 60 * 60 * 24,
+    },
+    "cleanup-django-sessions": {
+        "task": "app.tasks.cleanup_django_sessions_task",
+        "schedule": 60 * 60 * 24 * 7,
+    },
+}
+
+# Test retention (env orqali sozlanadi, mavjud summary/progress saqlanadi):
+# 1) Tashlab ketilgan ochiq sessionlar -> o'chiriladi
+# 2) Eski javob/savol detaili -> o'chiriladi, TestSession summary qoladi
+# 3) Takroriy test sessionlar -> eng yaxshi bittasi qoldiriladi
+TEST_UNFINISHED_RETENTION_DAYS = int(os.getenv("TEST_UNFINISHED_RETENTION_DAYS", "7"))
+TEST_DETAIL_RETENTION_DAYS = int(os.getenv("TEST_DETAIL_RETENTION_DAYS", "30"))
+TEST_DEDUPE_SESSIONS_AFTER_DAYS = int(os.getenv("TEST_DEDUPE_SESSIONS_AFTER_DAYS", "45"))
+JWT_BLACKLIST_CLEANUP_ENABLED = os.getenv("JWT_BLACKLIST_CLEANUP_ENABLED", "1") == "1"
+DJANGO_SESSION_CLEANUP_ENABLED = os.getenv("DJANGO_SESSION_CLEANUP_ENABLED", "1") == "1"
+
+REDIS_CACHE_ENABLED = os.getenv("REDIS_CACHE_ENABLED", "1" if CELERY_ENABLED else "0") == "1"
+REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL", REDIS_URL.rsplit("/", 1)[0] + "/1")
+
+if REDIS_CACHE_ENABLED:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": REDIS_CACHE_URL,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+                "IGNORE_EXCEPTIONS": True,
+            },
+        }
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "pdp-junior-local",
         }
     }
 
