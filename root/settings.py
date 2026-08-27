@@ -287,50 +287,74 @@ TELEGRAM_SHOP_CHAT_ID = os.getenv("TELEGRAM_SHOP_CHAT_ID", "-5326868544")
 
 # ---------------------------------------------------------------------
 # MEDIA STORAGE: Local yoki Cloudflare R2 (S3-compatible)
-
-# # 1 qilib qo'ysangiz R2 ishga tushadi
+# Yoqish: USE_R2=1 + R2_* env o'zgaruvchilari (.env / hosting)
 USE_R2 = os.getenv("USE_R2") == "1"
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 if USE_R2:
-    INSTALLED_APPS += ["storages"]
+    from django.core.exceptions import ImproperlyConfigured
 
-    R2_ACCOUNT_ID = os.getenv("R2_ACCOUNT_ID")
-    AWS_ACCESS_KEY_ID = os.getenv("R2_ACCESS_KEY_ID")
-    AWS_SECRET_ACCESS_KEY = os.getenv("R2_SECRET_ACCESS_KEY")
-    AWS_STORAGE_BUCKET_NAME = os.getenv("R2_BUCKET_NAME")
+    required_r2 = {
+        "R2_ACCOUNT_ID": os.getenv("R2_ACCOUNT_ID"),
+        "R2_ACCESS_KEY_ID": os.getenv("R2_ACCESS_KEY_ID"),
+        "R2_SECRET_ACCESS_KEY": os.getenv("R2_SECRET_ACCESS_KEY"),
+        "R2_BUCKET_NAME": os.getenv("R2_BUCKET_NAME"),
+    }
+    missing = [key for key, value in required_r2.items() if not value]
+    if missing:
+        raise ImproperlyConfigured(
+            "USE_R2=1, lekin yetishmayotgan env: " + ", ".join(missing)
+        )
 
-    AWS_S3_ENDPOINT_URL = f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com"
+    if "storages" not in INSTALLED_APPS:
+        INSTALLED_APPS += ["storages"]
+
+    R2_ACCOUNT_ID = required_r2["R2_ACCOUNT_ID"]
+    AWS_ACCESS_KEY_ID = required_r2["R2_ACCESS_KEY_ID"]
+    AWS_SECRET_ACCESS_KEY = required_r2["R2_SECRET_ACCESS_KEY"]
+    AWS_STORAGE_BUCKET_NAME = required_r2["R2_BUCKET_NAME"]
+
+    AWS_S3_ENDPOINT_URL = os.getenv(
+        "R2_ENDPOINT",
+        f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+    ).rstrip("/")
     AWS_S3_REGION_NAME = "auto"
-
     AWS_S3_FILE_OVERWRITE = False
     AWS_DEFAULT_ACL = None
     AWS_QUERYSTRING_AUTH = False
-
-    AWS_LOCATION = os.getenv("R2_LOCATION", "media")
-
-    R2_PUBLIC_BASE_URL = os.getenv("R2_PUBLIC_BASE_URL", "").rstrip("/")
-    AWS_S3_CUSTOM_DOMAIN = R2_PUBLIC_BASE_URL.replace("https://", "").replace("http://", "")
-    AWS_S3_URL_PROTOCOL = "https:"
-
     AWS_S3_ADDRESSING_STYLE = "path"
     AWS_S3_SIGNATURE_VERSION = "s3v4"
+    AWS_LOCATION = os.getenv("R2_LOCATION", "media").strip("/") or "media"
+
+    R2_PUBLIC_BASE_URL = os.getenv("R2_PUBLIC_BASE_URL", "").rstrip("/")
+    AWS_S3_CUSTOM_DOMAIN = (
+        R2_PUBLIC_BASE_URL.replace("https://", "").replace("http://", "")
+        if R2_PUBLIC_BASE_URL
+        else None
+    )
+    AWS_S3_URL_PROTOCOL = "https:"
+
+    storage_options = {
+        "bucket_name": AWS_STORAGE_BUCKET_NAME,
+        "location": AWS_LOCATION,
+        "endpoint_url": AWS_S3_ENDPOINT_URL,
+        "region_name": AWS_S3_REGION_NAME,
+        "addressing_style": AWS_S3_ADDRESSING_STYLE,
+        "signature_version": AWS_S3_SIGNATURE_VERSION,
+        "default_acl": None,
+        "querystring_auth": False,
+        "file_overwrite": False,
+    }
+    if AWS_S3_CUSTOM_DOMAIN:
+        storage_options["custom_domain"] = AWS_S3_CUSTOM_DOMAIN
+        storage_options["url_protocol"] = AWS_S3_URL_PROTOCOL
 
     STORAGES = {
         "default": {
             "BACKEND": "storages.backends.s3.S3Storage",
-            "OPTIONS": {
-                "bucket_name": AWS_STORAGE_BUCKET_NAME,
-                "location": AWS_LOCATION,
-                "endpoint_url": AWS_S3_ENDPOINT_URL,
-                "region_name": AWS_S3_REGION_NAME,
-                "addressing_style": AWS_S3_ADDRESSING_STYLE,
-                "signature_version": AWS_S3_SIGNATURE_VERSION,
-                "custom_domain": AWS_S3_CUSTOM_DOMAIN,
-                "url_protocol": AWS_S3_URL_PROTOCOL,
-            },
+            "OPTIONS": storage_options,
         },
         "staticfiles": {
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
@@ -340,4 +364,6 @@ if USE_R2:
     if R2_PUBLIC_BASE_URL:
         MEDIA_URL = f"{R2_PUBLIC_BASE_URL}/{AWS_LOCATION}/"
     else:
-        MEDIA_URL = f"/{AWS_LOCATION}/"
+        # Public URL yo'q — API endpoint orqali URL chiqadi (brauzerda ochilmasligi mumkin).
+        # Cloudflare R2 bucket Settings > Public access dan R2_PUBLIC_BASE_URL qo'ying.
+        MEDIA_URL = f"{AWS_S3_ENDPOINT_URL}/{AWS_STORAGE_BUCKET_NAME}/{AWS_LOCATION}/"

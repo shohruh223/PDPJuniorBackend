@@ -5,13 +5,19 @@ from app.admin.mixins import RowActionsAdminMixin
 from app.admin.resources import BranchResource, PrettyImportExportModelAdmin
 from app.admin.media import MultipleFileField, save_uploaded_file
 from app.models.branch import Branch
+from app.serializers.media import build_file_url
 
 
 class BranchAdminForm(forms.ModelForm):
+    cover_image = forms.ImageField(
+        label="Asosiy rasm (cover)",
+        required=False,
+        help_text="Yuklanganda Cloudflare R2 ga saqlanadi. API dagi image maydoni shu URL bo‘ladi.",
+    )
     album_images = MultipleFileField(
         label="Album rasmlari",
         required=False,
-        help_text="Bir nechta rasm yuklash mumkin.",
+        help_text="Bir nechta rasm yuklash mumkin (R2).",
     )
 
     video_links = forms.CharField(
@@ -33,9 +39,22 @@ class BranchAdminForm(forms.ModelForm):
             "address",
             "phone",
             "map_url",
+            "image_url",
             "is_opened",
             "is_active",
         )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["image_url"].label = "Joriy image URL / path"
+        self.fields["image_url"].required = False
+        self.fields["image_url"].help_text = (
+            "Qo‘lda URL yoki path. Cover yuklasangiz avtomatik yangilanadi."
+        )
+        if self.instance and self.instance.pk and self.instance.image_url:
+            self.fields["cover_image"].help_text = (
+                f"Hozirgi: {build_file_url(self.instance.image_url) or self.instance.image_url}"
+            )
 
     def clean_video_links(self):
         value = self.cleaned_data.get("video_links") or ""
@@ -56,6 +75,10 @@ class BranchAdminForm(forms.ModelForm):
 
     def save(self, commit=True):
         obj = super().save(commit=False)
+
+        cover = self.cleaned_data.get("cover_image")
+        if cover:
+            obj.image_url = save_uploaded_file(cover, "branches/cover")
 
         album = obj.album if isinstance(obj.album, list) else []
 
@@ -97,6 +120,8 @@ class BranchAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
         "address",
         "phone",
         "map_url",
+        "cover_image",
+        "image_url",
         "is_opened",
         "is_active",
         "album_images",

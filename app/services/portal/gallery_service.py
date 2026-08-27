@@ -1,6 +1,18 @@
 from __future__ import annotations
 
 from app.models.gallery import GalleryPost
+from app.serializers.media import build_file_url
+
+
+def _map_media_item(item: dict, request=None) -> dict:
+    data = dict(item or {})
+    src = data.get("src") or data.get("url") or ""
+    if src:
+        resolved = build_file_url(src, request)
+        data["src"] = resolved
+        if "url" in data:
+            data["url"] = resolved
+    return data
 
 
 def serialize_gallery_post(post: GalleryPost, request=None) -> dict:
@@ -13,7 +25,10 @@ def serialize_gallery_post(post: GalleryPost, request=None) -> dict:
             "bg": post.cover_bg,
         }]
 
-    image = post.cover_image or (media[0].get("src") if media else "")
+    media = [_map_media_item(item, request) for item in media if isinstance(item, dict)]
+    image = build_file_url(post.cover_image, request) or (
+        media[0].get("src") if media else ""
+    )
 
     return {
         "id": str(post.id),

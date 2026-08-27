@@ -1,15 +1,18 @@
 from rest_framework import serializers
 
 from app.models import Course, StudentMark
+from app.serializers.media import build_file_url
 
 
 class MarksCourseSerializer(serializers.ModelSerializer):
-    image = serializers.CharField(source="image_url", read_only=True)
+    image = serializers.SerializerMethodField()
 
     class Meta:
         model = Course
         fields = ("id", "name", "description", "image")
 
+    def get_image(self, obj):
+        return build_file_url(obj.image_url, self.context.get("request"))
 
 class MarkRecordSerializer(serializers.ModelSerializer):
     date = serializers.DateField(source="record_date", read_only=True)

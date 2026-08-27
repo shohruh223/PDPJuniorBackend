@@ -96,5 +96,5 @@ urlpatterns = [
     path("api/token/refresh/", DocumentedTokenRefreshView.as_view(), name="token_refresh"),
 ]
 
-if settings.DEBUG:
+if settings.DEBUG and not getattr(settings, "USE_R2", False):
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
