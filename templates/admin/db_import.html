@@ -18,53 +18,6 @@
     max-width: 760px;
     margin: 0 auto 36px;
 }
-.pdp-import-hero {
-    position: relative;
-    overflow: hidden;
-    margin-bottom: 18px;
-    padding: 28px 30px;
-    color: #fff;
-    background:
-        radial-gradient(circle at 88% 18%, rgba(77, 238, 248, .2), transparent 14rem),
-        linear-gradient(118deg, #002b33 0%, #00424c 58%, #00616c 100%);
-    border: 1px solid rgba(73, 232, 242, .23);
-    border-radius: 24px;
-    box-shadow: 0 22px 48px rgba(0, 41, 48, .16);
-}
-.pdp-import-hero__badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-    color: #81f6fc;
-    font-size: 9px;
-    font-weight: 900;
-    letter-spacing: 1.3px;
-    text-transform: uppercase;
-}
-.pdp-import-hero__badge i {
-    width: 7px;
-    height: 7px;
-    background: #55edf6;
-    border-radius: 50%;
-    box-shadow: 0 0 0 5px rgba(85, 237, 246, .14);
-}
-.pdp-import-hero h1 {
-    margin: 0 0 8px !important;
-    color: #fff !important;
-    font-family: "Manrope", "Inter", sans-serif;
-    font-size: clamp(24px, 3vw, 32px) !important;
-    font-weight: 800;
-    letter-spacing: -.8px;
-    line-height: 1.15;
-}
-.pdp-import-hero p {
-    max-width: 520px;
-    margin: 0;
-    color: rgba(227, 252, 254, .72);
-    font-size: 13px;
-    line-height: 1.65;
-}
 .pdp-import-card {
     padding: 22px 24px;
     background: var(--pdp-surface, #fff);
@@ -241,15 +194,6 @@ html[data-theme="dark"] .pdp-import-notes li {
 
 {% block content %}
 <div class="pdp-import-page">
-    <section class="pdp-import-hero">
-        <span class="pdp-import-hero__badge"><i></i> Butun database</span>
-        <h1>Umumiy JSON import</h1>
-        <p>
-            Bitta jadval emas — butun ma’lumotlar bazasi yuklanadi.
-            Faqat admin Export orqali olingan Django dumpdata JSON faylini tanlang.
-        </p>
-    </section>
-
     <div class="pdp-import-card">
         <form method="post" enctype="multipart/form-data" id="pdp-import-form">
             {% csrf_token %}

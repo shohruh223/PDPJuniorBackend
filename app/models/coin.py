@@ -39,12 +39,14 @@ class CoinProduct(BaseModel):
         return f"{self.name} - {self.price} coin"
 
     def get_display_image_url(self, request=None):
+        from app.serializers.media import build_file_url
+
         if self.image:
             url = self.image.url
-            if request:
+            if request and not str(url).startswith(("http://", "https://")):
                 return request.build_absolute_uri(url)
             return url
-        return self.image_url or None
+        return build_file_url(self.image_url, request)
 
 
 class CoinOrder(BaseModel):
