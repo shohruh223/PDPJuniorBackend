@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from django.db import transaction
+from django.conf import settings
 
 from app.models.auth import StudentProfile
 from app.models.coin import CoinOrder, CoinProduct
@@ -114,6 +115,18 @@ def purchase_product(*, profile: StudentProfile, product_id) -> tuple[CoinOrder 
         balance_after=profile.total_coin,
     )
     transaction.on_commit(
-        lambda order_id=order.pk: send_shop_order_notification(order_id)
+        lambda order_id=order.pk: _dispatch_shop_notification(order_id)
     )
     return order, None
+
+
+def _dispatch_shop_notification(order_id):
+    """Celery yoqilgan productionda HTTP Telegram so'rovini bloklamaydi."""
+    if settings.CELERY_ENABLED:
+        from app.tasks import send_shop_order_notification_task
+
+        send_shop_order_notification_task.delay(str(order_id))
+        return
+
+    # Redis/Celery yo'q lokal muhit uchun mavjud xatti-harakat saqlanadi.
+    send_shop_order_notification(order_id)

@@ -68,11 +68,15 @@ class StudentTestBaseAPIView(APIView):
 
         return "uz"
 
-    def get_session_or_response(self, session_id, user):
+    def get_session_or_response(self, session_id, user, *, for_update=False):
+        sessions = TestSession.objects.filter(session_id=session_id, student=user)
+        if for_update:
+            sessions = sessions.select_for_update()
+
         session = (
-            TestSession.objects.filter(session_id=session_id, student=user)
+            sessions
             .select_related("lesson", "lesson__course", "lesson__module")
-            .prefetch_related("items__question", "answers")
+            .prefetch_related("items__question")
             .first()
         )
 
@@ -518,7 +522,11 @@ class SubmitAnswerAPIView(StudentTestBaseAPIView):
     )
     @transaction.atomic
     def post(self, request, session_id, *args, **kwargs):
-        session, error_response = self.get_session_or_response(session_id, request.user)
+        session, error_response = self.get_session_or_response(
+            session_id,
+            request.user,
+            for_update=True,
+        )
         if error_response:
             return error_response
 
@@ -528,25 +536,27 @@ class SubmitAnswerAPIView(StudentTestBaseAPIView):
         )
         serializer.is_valid(raise_exception=True)
         answer = serializer.save()
+        session.refresh_from_db(fields=["answered_count", "is_finished", "finished_at"])
 
-        # Session answers prefetch qilingan bo‘lishi mumkin; yangi saqlangan
-        # javobni darhol hisoblash uchun bog‘langan manager cache'ini ishlatmaymiz.
-        total = TestSessionQuestion.objects.filter(session=session).count()
-        answered = TestSessionAnswer.objects.filter(session=session).count()
-
+        total = session.total_questions
+        answered = session.answered_count
         finished = answered >= total
         if finished:
             session.finish()
 
-        question = answer.question
-        show_correct_answer = answer.selected_option != question.correct_option
+        session_item = serializer.validated_data["session_item"]
+        correct_option = (
+            session_item.correct_option_snapshot
+            or answer.question.correct_option
+        )
+        show_correct_answer = answer.selected_option != correct_option
 
         response_serializer = SubmitAnswerResponseSerializer(
             {
                 "question_id": answer.question_id,
                 "selected_option": answer.selected_option,
                 "is_correct": answer.is_correct,
-                "correct_option": question.correct_option,
+                "correct_option": correct_option,
                 "show_correct_answer": show_correct_answer,
                 "finished": finished,
                 "remaining_seconds": session.remaining_seconds,
@@ -563,6 +573,22 @@ class SubmitAnswerAPIView(StudentTestBaseAPIView):
 
 
 class TestSessionResultAPIView(StudentTestBaseAPIView):
+    def _build_result_from_summary(self, session, lang):
+        spent_seconds = session.spent_seconds
+        spent_time = f"{spent_seconds // 60}:{spent_seconds % 60:02d}"
+        serializer = TestSessionResultSerializer(
+            {
+                "percent": session.percent,
+                "spent_time": spent_time,
+                "total": session.total_questions,
+                "correct": session.correct_count,
+                "wrong": session.wrong_count,
+                "unanswered": session.unanswered_count,
+                "questions": [],
+            }
+        )
+        return serializer.data
+
     @swagger_auto_schema(
         tags=["Student Tests"],
         operation_summary="Test natijasini olish",
@@ -647,15 +673,30 @@ Muhim:
             ),
         },
     )
+    @transaction.atomic
     def get(self, request, session_id, *args, **kwargs):
-        session, error_response = self.get_session_or_response(session_id, request.user)
+        session, error_response = self.get_session_or_response(
+            session_id,
+            request.user,
+            for_update=True,
+        )
         if error_response:
             return error_response
 
-        if not session.is_finished:
+        if not session.is_finished or not session.finalized_at:
             session.finish()
 
         lang = self.get_request_language(request)
+
+        if session.finalized_at and not session.items.exists():
+            return Response(
+                {
+                    "success": True,
+                    "message": "Test natijasi olindi.",
+                    "data": self._build_result_from_summary(session, lang),
+                },
+                status=status.HTTP_200_OK,
+            )
 
         items = (
             TestSessionQuestion.objects.select_related("question")
@@ -675,7 +716,9 @@ Muhim:
 
         for item in items:
             question = item.question
-            answer = answers_map.get(question.id)
+            snapshot = item.question_snapshot or {}
+            question_id = snapshot.get("id", question.id)
+            answer = answers_map.get(question_id)
 
             selected_option = answer.selected_option if answer else None
             is_answered = answer is not None
@@ -688,7 +731,7 @@ Muhim:
             else:
                 wrong += 1
 
-            images = question.images or {}
+            images = snapshot.get("images", question.images or {})
             image_url = None
             if isinstance(images, dict):
                 image_url = (
@@ -699,15 +742,19 @@ Muhim:
 
             result_questions.append(
                 {
-                    "id": question.id,
+                    "id": question_id,
                     "order": item.order,
-                    "text": pick_lang_value(question.text, lang),
+                    "text": pick_lang_value(snapshot.get("text", question.text), lang),
                     "image_url": image_url,
                     "options": {
                         key: pick_lang_value(value, lang)
-                        for key, value in (question.options or {}).items()
+                        for key, value in (
+                            snapshot.get("options", question.options or {})
+                        ).items()
                     },
-                    "correct_option": question.correct_option,
+                    "correct_option": (
+                        item.correct_option_snapshot or question.correct_option
+                    ),
                     "selected_option": selected_option,
                     "is_correct": is_correct,
                     "is_answered": is_answered,

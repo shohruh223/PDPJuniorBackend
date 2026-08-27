@@ -9,6 +9,7 @@ from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.urls import reverse
 
+from app.admin.forms import AdminPhoneAuthenticationForm
 from app.admin.mixins import NoFilterSidebarChangeList
 from app.admin.resources import (
     PrettyImportExportModelAdmin,
@@ -17,6 +18,9 @@ from app.admin.resources import (
 )
 from app.models.auth import User, StudentProfile
 from app.models.branch import Branch
+
+
+admin.site.login_form = AdminPhoneAuthenticationForm
 
 
 class UserAdminForm(forms.ModelForm):

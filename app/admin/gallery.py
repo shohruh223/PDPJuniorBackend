@@ -4,6 +4,7 @@ from django.utils import timezone
 
 from app.admin.media import MultipleFileField, save_uploaded_file
 from app.admin.mixins import RowActionsAdminMixin
+from app.admin.resources import GalleryPostResource, PrettyImportExportModelAdmin
 from app.models.gallery import GalleryPost
 
 
@@ -152,7 +153,8 @@ class GalleryPostAdminForm(forms.ModelForm):
 
 
 @admin.register(GalleryPost)
-class GalleryPostAdmin(RowActionsAdminMixin, admin.ModelAdmin):
+class GalleryPostAdmin(PrettyImportExportModelAdmin):
+    resource_class = GalleryPostResource
     form = GalleryPostAdminForm
     list_display = (
         "title_preview",

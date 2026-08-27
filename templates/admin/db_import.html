@@ -1,0 +1,326 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block bodyclass %}{{ block.super }} pdp-db-transfer{% endblock %}
+{% block content_title %}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">Bosh sahifa</a>
+    &rsaquo; Butun database import
+</div>
+{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.pdp-import-page {
+    max-width: 760px;
+    margin: 0 auto 36px;
+}
+.pdp-import-hero {
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 18px;
+    padding: 28px 30px;
+    color: #fff;
+    background:
+        radial-gradient(circle at 88% 18%, rgba(77, 238, 248, .2), transparent 14rem),
+        linear-gradient(118deg, #002b33 0%, #00424c 58%, #00616c 100%);
+    border: 1px solid rgba(73, 232, 242, .23);
+    border-radius: 24px;
+    box-shadow: 0 22px 48px rgba(0, 41, 48, .16);
+}
+.pdp-import-hero__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+    color: #81f6fc;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 1.3px;
+    text-transform: uppercase;
+}
+.pdp-import-hero__badge i {
+    width: 7px;
+    height: 7px;
+    background: #55edf6;
+    border-radius: 50%;
+    box-shadow: 0 0 0 5px rgba(85, 237, 246, .14);
+}
+.pdp-import-hero h1 {
+    margin: 0 0 8px !important;
+    color: #fff !important;
+    font-family: "Manrope", "Inter", sans-serif;
+    font-size: clamp(24px, 3vw, 32px) !important;
+    font-weight: 800;
+    letter-spacing: -.8px;
+    line-height: 1.15;
+}
+.pdp-import-hero p {
+    max-width: 520px;
+    margin: 0;
+    color: rgba(227, 252, 254, .72);
+    font-size: 13px;
+    line-height: 1.65;
+}
+.pdp-import-card {
+    padding: 22px 24px;
+    background: var(--pdp-surface, #fff);
+    border: 1px solid rgba(0, 120, 132, .12);
+    border-radius: 20px;
+    box-shadow: 0 12px 32px rgba(0, 40, 48, .06);
+}
+html[data-theme="dark"] .pdp-import-card {
+    background: rgba(12, 28, 34, .94);
+    border-color: rgba(0, 224, 239, .16);
+}
+.pdp-import-drop {
+    display: block;
+    margin-bottom: 18px;
+    cursor: pointer;
+}
+.pdp-import-drop__label {
+    display: block;
+    margin-bottom: 8px;
+    color: #04555e;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .02em;
+}
+html[data-theme="dark"] .pdp-import-drop__label {
+    color: #9af8fd;
+}
+.pdp-import-drop__box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 132px;
+    padding: 22px 18px;
+    text-align: center;
+    background:
+        radial-gradient(circle at 50% 0%, rgba(0, 224, 239, .08), transparent 60%),
+        rgba(243, 251, 253, .95);
+    border: 1.5px dashed rgba(0, 166, 178, .32);
+    border-radius: 16px;
+    transition: border-color .15s ease, background .15s ease, box-shadow .15s ease;
+}
+html[data-theme="dark"] .pdp-import-drop__box {
+    background: rgba(0, 224, 239, .06);
+    border-color: rgba(0, 224, 239, .28);
+}
+.pdp-import-drop:hover .pdp-import-drop__box,
+.pdp-import-drop.is-dragover .pdp-import-drop__box {
+    border-color: rgba(0, 200, 214, .55);
+    background: rgba(0, 224, 239, .1);
+    box-shadow: 0 10px 24px rgba(0, 180, 192, .1);
+}
+.pdp-import-drop__icon {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    color: #007884;
+    background: rgba(0, 224, 239, .14);
+    border-radius: 12px;
+}
+html[data-theme="dark"] .pdp-import-drop__icon {
+    color: #9af8fd;
+}
+.pdp-import-drop__icon svg {
+    width: 20px !important;
+    height: 20px !important;
+    fill: none !important;
+    stroke: currentColor !important;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+.pdp-import-drop__title {
+    color: var(--pdp-ink, #04343b);
+    font-size: 13px;
+    font-weight: 800;
+}
+html[data-theme="dark"] .pdp-import-drop__title {
+    color: #eaffff;
+}
+.pdp-import-drop__hint {
+    color: #5a727a;
+    font-size: 12px;
+    font-weight: 600;
+}
+html[data-theme="dark"] .pdp-import-drop__hint {
+    color: rgba(232, 251, 255, .55);
+}
+.pdp-import-drop__name {
+    display: none;
+    margin-top: 2px;
+    color: #007884;
+    font-size: 12px;
+    font-weight: 800;
+}
+.pdp-import-drop.has-file .pdp-import-drop__name {
+    display: block;
+}
+.pdp-import-drop input[type="file"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    overflow: hidden;
+}
+.pdp-import-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.pdp-import-actions .pdp-db-tools__btn {
+    min-height: 40px !important;
+    padding: 0 16px !important;
+    font-size: 12px !important;
+    border: 0;
+    cursor: pointer;
+}
+.pdp-import-actions .pdp-db-tools__btn--export {
+    color: #002930 !important;
+    background: linear-gradient(180deg, #7af3fb, #4fe6f0) !important;
+    border: 1px solid rgba(0, 180, 192, .3) !important;
+    box-shadow: 0 8px 18px rgba(0, 200, 214, .2) !important;
+}
+.pdp-import-actions .pdp-db-tools__btn--import {
+    color: #04555e !important;
+    background: #fff !important;
+    border: 1px solid rgba(0, 166, 178, .24) !important;
+    text-decoration: none !important;
+}
+html[data-theme="dark"] .pdp-import-actions .pdp-db-tools__btn--import {
+    color: #d8fbff !important;
+    background: rgba(8, 24, 30, .9) !important;
+}
+.pdp-import-notes {
+    display: grid;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+.pdp-import-notes li {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    color: #4a6670;
+    background: rgba(0, 224, 239, .05);
+    border: 1px solid rgba(0, 166, 178, .1);
+    border-radius: 12px;
+    font-size: 12px;
+    line-height: 1.55;
+    font-weight: 600;
+}
+html[data-theme="dark"] .pdp-import-notes li {
+    color: rgba(232, 251, 255, .7);
+    background: rgba(0, 224, 239, .06);
+    border-color: rgba(0, 224, 239, .12);
+}
+.pdp-import-notes li::before {
+    content: "";
+    flex: 0 0 8px;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    background: #63edf6;
+    border-radius: 50%;
+    box-shadow: 0 0 0 4px rgba(99, 237, 246, .16);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pdp-import-page">
+    <section class="pdp-import-hero">
+        <span class="pdp-import-hero__badge"><i></i> Butun database</span>
+        <h1>Umumiy JSON import</h1>
+        <p>
+            Bitta jadval emas — butun ma’lumotlar bazasi yuklanadi.
+            Faqat admin Export orqali olingan Django dumpdata JSON faylini tanlang.
+        </p>
+    </section>
+
+    <div class="pdp-import-card">
+        <form method="post" enctype="multipart/form-data" id="pdp-import-form">
+            {% csrf_token %}
+            <label class="pdp-import-drop" id="pdp-import-drop">
+                <span class="pdp-import-drop__label">JSON fayl</span>
+                <span class="pdp-import-drop__box">
+                    <span class="pdp-import-drop__icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <path d="m17 8-5-5-5 5"/>
+                            <path d="M12 3v12"/>
+                        </svg>
+                    </span>
+                    <span class="pdp-import-drop__title">Faylni tanlang yoki shu yerga tashlang</span>
+                    <span class="pdp-import-drop__hint">Faqat .json · dumpdata formati</span>
+                    <span class="pdp-import-drop__name" id="pdp-import-filename"></span>
+                </span>
+                <input type="file" name="json_file" id="pdp-import-input" accept=".json,application/json" required>
+            </label>
+
+            <div class="pdp-import-actions">
+                <button type="submit" class="pdp-db-tools__btn pdp-db-tools__btn--export">Import qilish</button>
+                <a class="pdp-db-tools__btn pdp-db-tools__btn--import" href="{% url 'admin:index' %}">Bekor qilish</a>
+            </div>
+        </form>
+
+        <ul class="pdp-import-notes">
+            <li>Media fayllar (rasmlar) JSON ichida emas — ularni alohida ko‘chiring.</li>
+            <li>Mavjud ID lar yangilanadi, yangilari yaratiladi.</li>
+            <li>Xato bo‘lsa — hech narsa saqlanmaydi (transaction rollback).</li>
+        </ul>
+    </div>
+</div>
+<script>
+(function () {
+    var drop = document.getElementById("pdp-import-drop");
+    var input = document.getElementById("pdp-import-input");
+    var nameEl = document.getElementById("pdp-import-filename");
+    if (!drop || !input || !nameEl) return;
+
+    function showName() {
+        var file = input.files && input.files[0];
+        if (file) {
+            drop.classList.add("has-file");
+            nameEl.textContent = file.name;
+        } else {
+            drop.classList.remove("has-file");
+            nameEl.textContent = "";
+        }
+    }
+
+    input.addEventListener("change", showName);
+
+    ["dragenter", "dragover"].forEach(function (evt) {
+        drop.addEventListener(evt, function (e) {
+            e.preventDefault();
+            drop.classList.add("is-dragover");
+        });
+    });
+    ["dragleave", "drop"].forEach(function (evt) {
+        drop.addEventListener(evt, function (e) {
+            e.preventDefault();
+            drop.classList.remove("is-dragover");
+        });
+    });
+    drop.addEventListener("drop", function (e) {
+        var files = e.dataTransfer && e.dataTransfer.files;
+        if (!files || !files.length) return;
+        input.files = files;
+        showName();
+    });
+})();
+</script>
+{% endblock %}

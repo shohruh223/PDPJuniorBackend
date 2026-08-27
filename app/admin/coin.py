@@ -1,7 +1,11 @@
 from django.contrib import admin
 from django.utils import timezone
 from app.admin.mixins import RowActionsAdminMixin
-from app.admin.resources import PrettyImportExportModelAdmin, CoinProductResource
+from app.admin.resources import (
+    CoinOrderResource,
+    CoinProductResource,
+    PrettyImportExportModelAdmin,
+)
 from app.models.coin import CoinProduct, CoinOrder
 
 
@@ -16,7 +20,9 @@ class CoinProductAdmin(PrettyImportExportModelAdmin):
 
 
 @admin.register(CoinOrder)
-class CoinOrderAdmin(RowActionsAdminMixin, admin.ModelAdmin):
+class CoinOrderAdmin(PrettyImportExportModelAdmin):
+    resource_class = CoinOrderResource
+
     def get_model_perms(self, request):
         return {}
 
