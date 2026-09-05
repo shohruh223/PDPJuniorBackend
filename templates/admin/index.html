@@ -1,100 +1,19 @@
 {% extends "admin/base_site.html" %}
-{% load i18n static log %}
+{% load i18n static log admin_stats %}
 
 {% block bodyclass %}{{ block.super }} dashboard pdp-dashboard{% endblock %}
 {% block breadcrumbs %}{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}
-<style>
-/* Inline so cached CSS cannot break this heading row */
-.pdp-index-heading {
-    display: flex !important;
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
-    align-items: center !important;
-    justify-content: space-between !important;
-    gap: 16px !important;
-    width: 100% !important;
-    margin: 0 0 20px !important;
-    grid-column: 1 / -1 !important;
-}
-.pdp-index-heading__title {
-    flex: 0 1 auto !important;
-    width: auto !important;
-    max-width: none !important;
-    margin: 0 !important;
-    color: var(--pdp-ink, #04343b) !important;
-    font-size: clamp(25px, 3vw, 36px) !important;
-    font-weight: 800 !important;
-    letter-spacing: -1px !important;
-    line-height: 1.15 !important;
-}
-.pdp-db-tools {
-    display: inline-flex !important;
-    flex: 0 0 auto !important;
-    align-items: center !important;
-    gap: 8px !important;
-    margin: 0 0 0 auto !important;
-    padding: 4px !important;
-    background: rgba(0, 224, 239, .07) !important;
-    border: 1px solid rgba(0, 166, 178, .16) !important;
-    border-radius: 14px !important;
-}
-.pdp-db-tools__btn {
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    gap: 7px !important;
-    min-height: 36px !important;
-    padding: 0 14px !important;
-    border-radius: 10px !important;
-    font-family: "Manrope", "Inter", sans-serif !important;
-    font-size: 12px !important;
-    font-weight: 800 !important;
-    line-height: 1 !important;
-    text-decoration: none !important;
-    white-space: nowrap !important;
-    box-sizing: border-box !important;
-}
-.pdp-db-tools__btn--export {
-    color: #002930 !important;
-    background: linear-gradient(180deg, #7af3fb, #4fe6f0) !important;
-    border: 1px solid rgba(0, 180, 192, .3) !important;
-    box-shadow: 0 8px 18px rgba(0, 200, 214, .2) !important;
-}
-.pdp-db-tools__btn--import {
-    color: #04555e !important;
-    background: #fff !important;
-    border: 1px solid rgba(0, 166, 178, .24) !important;
-    box-shadow: 0 4px 12px rgba(0, 40, 48, .06) !important;
-}
-.pdp-db-tools__btn svg {
-    width: 15px !important;
-    height: 15px !important;
-    max-width: 15px !important;
-    max-height: 15px !important;
-    flex: 0 0 15px !important;
-    display: block !important;
-    fill: none !important;
-    stroke: currentColor !important;
-    stroke-width: 2.15 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-}
-.pdp-db-tools__btn:hover {
-    filter: brightness(1.05);
-    text-decoration: none !important;
-}
-@media (max-width: 640px) {
-    .pdp-index-heading {
-        flex-wrap: wrap !important;
-    }
-    .pdp-db-tools {
-        margin-left: 0 !important;
-    }
-}
-</style>
+{# Bu yerda ilgari butun `.pdp-index-heading` va `.pdp-db-tools`        #}
+{# komponenti `!important` bilan qayta yozilgan edi ("Inline so cached  #}
+{# CSS cannot break this heading row"). Natijada komponent IKKI joyda   #}
+{# ta'riflanib qoldi va ular bir-biridan uzoqlashdi: inline nusxada     #}
+{# tungi rejim varianti yo'q edi, shuning uchun "Import" tugmasi qora   #}
+{# fonda oq matn bilan oq fonda chiqib, ko'rinmay qolgandi (1.09:1).    #}
+{# Endi yagona manba — pdp_admin.css. Kesh muammosi CSS havolasidagi    #}
+{# `?v=` parametri bilan hal qilinadi.                                   #}
 {% endblock %}
 
 {% block content_title %}{% endblock %}
@@ -148,6 +67,19 @@
         </div>
     </section>
 
+    {% dashboard_summary as summary %}
+    {% if summary %}
+    <section class="pdp-kpi-row" aria-label="Asosiy ko‘rsatkichlar">
+        {% for card in summary %}
+            <a class="pdp-kpi pdp-kpi--{{ card.tone }}" href="{{ card.url }}">
+                <span class="pdp-kpi__label">{{ card.label }}</span>
+                <strong class="pdp-kpi__value">{{ card.value|default_if_none:"—" }}</strong>
+                {% if card.hint %}<small class="pdp-kpi__hint">{{ card.hint }}</small>{% endif %}
+            </a>
+        {% endfor %}
+    </section>
+    {% endif %}
+
     <div class="pdp-dashboard-layout">
         <main class="pdp-dashboard-modules">
             <div class="pdp-dashboard-heading">
@@ -159,9 +91,11 @@
                 <span class="pdp-dashboard-heading__badge">Barcha modullar</span>
             </div>
 
+            {% model_counts as counts %}
             <div class="pdp-dashboard-card-grid">
                 {% for app in app_list %}
                     {% for model in app.models %}
+                    {% with model_key=app.app_label|add:"."|add:model.object_name|lower %}
                         <article class="pdp-dashboard-card pdp-dashboard-card--{{ model.object_name|lower }}">
                             {% if model.admin_url %}
                                 <a class="pdp-dashboard-card__main" href="{{ model.admin_url }}">
@@ -179,17 +113,9 @@
                                     {% else %}◇{% endif %}
                                 </span>
                                 <span class="pdp-dashboard-card__copy">
-                                    <small>
-                                        {% if model.object_name == "Lesson" %}Ta’lim kontenti
-                                        {% elif model.object_name == "MonthHero" %}Studentlar reytingi
-                                        {% elif model.object_name == "Branch" %}Manzillar boshqaruvi
-                                        {% elif model.object_name == "StudentProfile" or model.object_name == "User" %}Foydalanuvchilar
-                                        {% elif model.object_name == "Mentor" %}Ta’lim jamoasi
-                                        {% elif model.object_name == "StudentPaymentHistory" %}Moliya
-                                        {% else %}Kontent boshqaruvi{% endif %}
-                                    </small>
+                                    <small>{{ model_key|category_for }}</small>
                                     <strong>{{ model.name }}</strong>
-                                    <span>Ma’lumotlarni ko‘rish va boshqarish</span>
+                                    <span>{{ counts|count_for:model_key|default:"Ma’lumotlarni ko‘rish" }}</span>
                                 </span>
                                 <span class="pdp-dashboard-card__arrow">→</span>
                             {% if model.admin_url %}</a>{% else %}</div>{% endif %}
@@ -202,6 +128,7 @@
                                 {% endif %}
                             </footer>
                         </article>
+                    {% endwith %}
                     {% endfor %}
                 {% empty %}
                     <div class="pdp-dashboard-empty">Siz uchun mavjud bo‘limlar topilmadi.</div>
