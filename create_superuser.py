@@ -25,3 +25,4 @@ if not User.objects.filter(phone_number=phone_number).exists():
     print("Superuser created successfully")
 else:
     print("Superuser already exists")
+
