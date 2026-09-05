@@ -1,0 +1,190 @@
+# PDP Junior — Django admin panelining o'zbekcha tarjimasi (to'ldiruvchi).
+#
+# NEGA KERAK: Django tarkibidagi `uz` lokalida bir qancha satrlar
+# tarjimasiz qolgan (msgstr bo'sh) — natijada butunlay o'zbekcha
+# panelning ichida "History", "Home", "Log in", "Yes, I'm sure" kabi
+# inglizcha yozuvlar chiqib turardi. Bu fayl faqat o'sha bo'shliqlarni
+# to'ldiradi; Django o'z tarjimasini birinchi bo'lib LOCALE_PATHS dan
+# qidirgani uchun bu yerdagilar ustun turadi.
+#
+# TAHRIRLAGANDAN KEYIN:  python scripts/compile_messages.py
+msgid ""
+msgstr ""
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Language: uz\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "History"
+msgstr "Tarix"
+
+msgid "Home"
+msgstr "Bosh sahifa"
+
+msgid "Site administration"
+msgstr "Boshqaruv paneli"
+
+msgid "Django site admin"
+msgstr "PDP Junior boshqaruv paneli"
+
+msgid "Django administration"
+msgstr "PDP Junior admin"
+
+msgid "Log in"
+msgstr "Kirish"
+
+msgid "Go"
+msgstr "Qidirish"
+
+msgid "Show all"
+msgstr "Barchasini ko‘rsatish"
+
+msgid "Objects"
+msgstr "Yozuvlar"
+
+msgid "Action"
+msgstr "Amal"
+
+msgid "User"
+msgstr "Foydalanuvchi"
+
+msgid "Date/time"
+msgstr "Sana va vaqt"
+
+msgid "Sidebar"
+msgstr "Yon panel"
+
+msgid "Breadcrumbs"
+msgstr "Navigatsiya"
+
+msgid "Skip to main content"
+msgstr "Asosiy kontentga o‘tish"
+
+msgid "Clear selection"
+msgstr "Tanlovni bekor qilish"
+
+msgid "Clear all filters"
+msgstr "Barcha filtrlarni tozalash"
+
+msgid "Toggle sorting"
+msgstr "Saralashni almashtirish"
+
+msgid "Show counts"
+msgstr "Sonlarni ko‘rsatish"
+
+msgid "Hide counts"
+msgstr "Sonlarni yashirish"
+
+msgid "None available"
+msgstr "Mavjud emas"
+
+msgid "Unknown content"
+msgstr "Noma’lum ma’lumot"
+
+msgid "Added:"
+msgstr "Qo‘shildi:"
+
+msgid "Changed:"
+msgstr "O‘zgartirildi:"
+
+msgid "Deleted:"
+msgstr "O‘chirildi:"
+
+msgid "Added."
+msgstr "Qo‘shildi."
+
+msgid "No fields changed."
+msgstr "Hech qanday maydon o‘zgarmadi."
+
+msgid "No action selected."
+msgstr "Hech qanday amal tanlanmadi."
+
+msgid "Yes, I’m sure"
+msgstr "Ha, o‘chirilsin"
+
+msgid "No, take me back"
+msgstr "Yo‘q, ortga qaytaman"
+
+msgid "Delete multiple objects"
+msgstr "Bir nechta yozuvni o‘chirish"
+
+msgid "Page not found"
+msgstr "Sahifa topilmadi"
+
+msgid "We’re sorry, but the requested page could not be found."
+msgstr "Kechirasiz, so‘ralgan sahifa topilmadi."
+
+msgid "You don’t have permission to view or edit anything."
+msgstr "Sizda ko‘rish yoki tahrirlash huquqi yo‘q."
+
+msgid "Forgotten your password or username?"
+msgstr "Parol yoki loginni unutdingizmi?"
+
+msgid "Start typing to filter…"
+msgstr "Filtrlash uchun yozing…"
+
+msgid "Filter navigation items"
+msgstr "Bo‘limlarni filtrlash"
+
+msgid "Hold down “Control”, or “Command” on a Mac, to select more than one."
+msgstr "Bir nechtasini tanlash uchun “Ctrl” (Mac’da “Command”) tugmasini bosib turing."
+
+msgid "You may edit it again below."
+msgstr "Quyida yana tahrirlashingiz mumkin."
+
+msgid "LogEntry Object"
+msgstr "Jurnal yozuvi"
+
+msgid "Toggle theme (current theme: auto)"
+msgstr "Rejimni almashtirish (hozir: avtomatik)"
+
+msgid "Toggle theme (current theme: light)"
+msgstr "Rejimni almashtirish (hozir: yorug‘)"
+
+msgid "Toggle theme (current theme: dark)"
+msgstr "Rejimni almashtirish (hozir: tungi)"
+
+msgid "Click here to select the objects across all pages"
+msgstr "Barcha sahifalardagi yozuvlarni tanlash uchun bosing"
+
+msgid "Models in the %(name)s application"
+msgstr "%(name)s bo‘limidagi modellar"
+
+msgid "%(app)s administration"
+msgstr "%(app)s boshqaruvi"
+
+msgid "Change history: %s"
+msgstr "O‘zgarishlar tarixi: %s"
+
+msgid "0 of %(cnt)s selected"
+msgstr "%(cnt)s tadan 0 tasi tanlandi"
+
+msgid "Select all %(total_count)s %(module_name)s"
+msgstr "Barcha %(total_count)s ta %(module_name)s tanlansin"
+
+msgid "Enter a new password for the user <strong>%(username)s</strong>."
+msgstr "<strong>%(username)s</strong> uchun yangi parol kiriting."
+
+msgid "The {name} “{obj}” was added successfully."
+msgstr "{name} «{obj}» muvaffaqiyatli qo‘shildi."
+
+msgid "Added {name} “{object}”."
+msgstr "{name} «{object}» qo‘shildi."
+
+msgid "Changed {fields} for {name} “{object}”."
+msgstr "{name} «{object}» uchun {fields} o‘zgartirildi."
+
+msgid "Changed {fields}."
+msgstr "{fields} o‘zgartirildi."
+
+msgid "Deleted {name} “{object}”."
+msgstr "{name} «{object}» o‘chirildi."
+
+msgid "%(name)s with ID “%(key)s” doesn’t exist. Perhaps it was deleted?"
+msgstr "“%(key)s” ID li %(name)s topilmadi. Ehtimol u o‘chirilgan?"
+
+msgid "Sorting priority: %(priority_number)s"
+msgstr "Saralash tartibi: %(priority_number)s"
+
+msgid "Select this object for an action - {}"
+msgstr "Amal uchun shu yozuvni tanlang - {}"
