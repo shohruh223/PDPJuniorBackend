@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="{% static 'app/admin/css/pdp_admin.css' %}?v=db-tools-3">
+<link rel="stylesheet" href="{% static 'app/admin/css/pdp_admin.css' %}?v=2026-09-05-a11y">
 {% endblock %}
 
 {% block extrahead %}
@@ -19,9 +19,38 @@
         var theme = savedTheme === "dark" ? "dark" : "light";
         document.documentElement.dataset.theme = theme;
         document.documentElement.style.colorScheme = theme;
-        if (window.matchMedia("(max-width: 767px)").matches) {
-            localStorage.setItem("django.admin.navSidebarIsOpen", "false");
+
+        // Telefonda yon panel yopiq holda ochilishi kerak.
+        //
+        // Ilgari bu yerda faqat `matchMedia(...)` tekshiruvi bor edi va u
+        // localStorage'ga "false" yozardi. Lekin skript <head> ichida,
+        // ya'ni sahifa hali chizilmasdan ishlaydi — o'sha paytda mobil
+        // brauzer ko'rinish kengligini hali aniqlamagan bo'lishi mumkin,
+        // shuning uchun shart ba'zan bajarilmasdan o'tib ketardi.
+        // Natijada telefonda admin panel ochilganda menyu butun ekranni
+        // yopib turardi (o'lchandi: 390px kenglikda panel 300px joyni
+        // egallab, kontent ustiga tushardi).
+        //
+        // Endi tekshiruv uch marta bajariladi: hozir, DOM tayyor bo'lganda
+        // va Django'ning o'z `nav_sidebar.js` fayli ishlab bo'lgach
+        // (u `load` hodisasida ishga tushadi).
+        function closeSidebarOnPhone() {
+            var width = document.documentElement.clientWidth || window.innerWidth || 0;
+            if (width > 767) { return; }
+            try {
+                localStorage.setItem("django.admin.navSidebarIsOpen", "false");
+            } catch (e) { /* private rejimda localStorage yopiq bo'lishi mumkin */ }
+            var sidebar = document.getElementById("nav-sidebar");
+            var main = document.getElementById("main");
+            if (sidebar) { sidebar.setAttribute("aria-expanded", "false"); }
+            if (main) { main.classList.remove("shifted"); }
         }
+
+        closeSidebarOnPhone();
+        window.addEventListener("DOMContentLoaded", closeSidebarOnPhone);
+        window.addEventListener("load", function () {
+            window.setTimeout(closeSidebarOnPhone, 0);
+        });
     })();
 </script>
 <style>
@@ -55,7 +84,9 @@
         <span class="pdp-user-chip__avatar">{{ request.user.phone_number|default:user.get_username|slice:"-2:" }}</span>
         <span class="pdp-user-chip__copy">
             <small>Xush kelibsiz</small>
-            <strong>{{ request.user.full_name|default:user.get_username }}</strong>
+            {# Ism sig'masa uch nuqta bilan qisqaradi, shuning uchun to'liq #}
+            {# qiymati `title` da — sichqoncha ustiga olib borilsa ko'rinadi. #}
+            <strong title="{{ request.user.full_name|default:user.get_username }}">{{ request.user.full_name|default:user.get_username }}</strong>
         </span>
     </div>
     <a class="pdp-user-action" href="https://pdp-junior-test.netlify.app/" target="_blank" rel="noopener">

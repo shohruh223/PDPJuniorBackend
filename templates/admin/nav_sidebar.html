@@ -71,7 +71,7 @@
     <div class="pdp-sidebar__user">
         <span class="pdp-sidebar__avatar">{{ request.user.phone_number|slice:"-2:" }}</span>
         <span class="pdp-sidebar__user-copy">
-            <strong>{{ request.user.full_name|default:request.user.phone_number }}</strong>
+            <strong title="{{ request.user.full_name|default:request.user.phone_number }}">{{ request.user.full_name|default:request.user.phone_number }}</strong>
             <small>Administrator</small>
         </span>
         <form method="post" action="{% url 'admin:logout' %}">
