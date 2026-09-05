@@ -6,6 +6,7 @@ from rest_framework.permissions import AllowAny
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+from app.throttling import AuthEndpointThrottle, SmsThrottle
 from app.serializers.auth import (
     CheckPhoneSerializer,
     EnterPasswordSerializer,
@@ -28,6 +29,7 @@ from app.services.auth_external_api import PDPAPIError
 
 class CheckPhoneAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [SmsThrottle]
 
     @swagger_auto_schema(
         tags=["Autentifikatsiya"],
@@ -82,6 +84,7 @@ class CheckPhoneAPIView(APIView):
 
 class EnterPasswordAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Autentifikatsiya"],
@@ -189,6 +192,7 @@ class EnterPasswordAPIView(APIView):
 
 class CheckSMSCodeAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Autentifikatsiya"],
@@ -315,6 +319,7 @@ class CheckSMSCodeAPIView(APIView):
 
 class ForgotPasswordAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [SmsThrottle]
 
     @swagger_auto_schema(
         tags=["Parolni tiklash"],
@@ -371,6 +376,7 @@ class ForgotPasswordAPIView(APIView):
 
 class VerifySMSCodeAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Parolni tiklash"],
@@ -434,6 +440,7 @@ class VerifySMSCodeAPIView(APIView):
 
 class SetNewPasswordAPIView(APIView):
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Parolni tiklash"],

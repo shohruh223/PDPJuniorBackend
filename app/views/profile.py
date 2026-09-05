@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app.throttling import PasswordThrottle, SyncThrottle
 from app.permissions import IsStudentUserRole
 from app.serializers.profile import (
     StudentProfileSerializer,
@@ -64,6 +65,7 @@ class StudentProfileAPIView(APIView):
 
 
 class StudentProfileImageUpdateAPIView(APIView):
+    throttle_classes = [SyncThrottle]
     permission_classes = [IsAuthenticated, IsStudentUserRole]
     parser_classes = [MultiPartParser, FormParser]
 
@@ -135,6 +137,7 @@ class StudentProfileImageUpdateAPIView(APIView):
 
 
 class StudentPasswordChangeAPIView(APIView):
+    throttle_classes = [PasswordThrottle]
     permission_classes = [IsAuthenticated, IsStudentUserRole]
     parser_classes = [JSONParser]
 

@@ -99,3 +99,6 @@ db.sqlite3
 data/exports/*.json
 data/exports/*_tables/
 !data/exports/.gitkeep
+
+# lokal sinxronizatsiya (Claude tekshiruv muhiti)
+/.sync/

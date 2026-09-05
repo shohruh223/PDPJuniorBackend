@@ -5,6 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from app.throttling import ShopWriteThrottle
 from app.permissions import IsStudentUserRole
 from app.services.portal.shop_service import (
     get_shop_catalog,
@@ -252,6 +253,7 @@ class ShopOrderListAPIView(APIView):
 
 
 class ShopOrderCreateAPIView(APIView):
+    throttle_classes = [ShopWriteThrottle]
     permission_classes = [IsAuthenticated, IsStudentUserRole]
 
     @swagger_auto_schema(

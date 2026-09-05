@@ -9,6 +9,7 @@ from rest_framework.views import APIView
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+from app.throttling import TestWriteThrottle
 from app.models.question import Course, Lesson, Module
 from app.models.test import TestSession, TestSessionQuestion, TestSessionAnswer
 from app.permissions import IsStudentUserRole
@@ -227,6 +228,7 @@ class StudentAvailableLessonsAPIView(StudentTestBaseAPIView):
 
 
 class StartTestSessionAPIView(StudentTestBaseAPIView):
+    throttle_classes = [TestWriteThrottle]
     @swagger_auto_schema(
         tags=["Student Tests"],
         operation_summary="Test session boshlash",
@@ -431,6 +433,7 @@ class TestSessionDetailAPIView(StudentTestBaseAPIView):
 
 
 class SubmitAnswerAPIView(StudentTestBaseAPIView):
+    throttle_classes = [TestWriteThrottle]
     @swagger_auto_schema(
         tags=["Student Tests"],
         operation_summary="Test savoliga javob yuborish",

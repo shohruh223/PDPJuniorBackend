@@ -6,6 +6,7 @@ from rest_framework.views import APIView
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+from app.throttling import AuthEndpointThrottle, SmsThrottle
 from app.serializers.auth import (
     CheckSMSCodeSerializer,
     EnterPasswordSerializer,
@@ -34,6 +35,7 @@ class FrontendLoginAPIView(APIView):
     """Frontend: POST /auth/login — telefon va parol, SMS kod yuborish."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Frontend / Autentifikatsiya"],
@@ -100,6 +102,7 @@ class FrontendVerifyLoginAPIView(APIView):
     """Frontend: POST /auth/login/verify — SMS kodni tasdiqlash va token olish."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Frontend / Autentifikatsiya"],
@@ -183,6 +186,7 @@ class FrontendForgotPasswordAPIView(APIView):
     """Frontend: POST /auth/forgot-password."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [SmsThrottle]
 
     @swagger_auto_schema(
         tags=["Frontend / Parolni tiklash"],
@@ -238,6 +242,7 @@ class FrontendVerifyForgotPasswordAPIView(APIView):
     """Frontend: POST /auth/forgot-password/verify."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Frontend / Parolni tiklash"],
@@ -294,6 +299,7 @@ class FrontendResetPasswordAPIView(APIView):
     """Frontend: POST /auth/reset-password."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [AuthEndpointThrottle]
 
     @swagger_auto_schema(
         tags=["Frontend / Parolni tiklash"],
@@ -353,6 +359,7 @@ class FrontendResendSmsAPIView(APIView):
     """Frontend: POST /auth/sms/resend — SMS kodni qayta yuborish."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [SmsThrottle]
 
     @swagger_auto_schema(
         tags=["Frontend / Autentifikatsiya"],

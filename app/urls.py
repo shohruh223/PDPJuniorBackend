@@ -58,8 +58,15 @@ from app.views.modules_lessons import (
     LessonDetailAPIView,
 )
 from app.views.catalog import CourseCatalogAPIView
+from app.views.health import HealthAPIView, ReadinessAPIView
 from app.views.marks import StudentMarksAPIView
 urlpatterns = [
+    # ── Health check (platforma va monitoring uchun) ───────────────────────
+    path("health", HealthAPIView.as_view(), name="health"),
+    path("health/", HealthAPIView.as_view(), name="health-slash"),
+    path("health/ready", ReadinessAPIView.as_view(), name="health-ready"),
+    path("health/ready/", ReadinessAPIView.as_view(), name="health-ready-slash"),
+
     # ── Frontend auth (PDP Junior portal) ──────────────────────────────────
     path("auth/login", FrontendLoginAPIView.as_view(), name="frontend-login"),
     path("auth/login/verify", FrontendVerifyLoginAPIView.as_view(), name="frontend-login-verify"),
