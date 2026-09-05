@@ -5,6 +5,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.conf import settings
+
+from app.services.portal import cache_layer
 from app.models import Course
 from app.serializers.catalog import CourseCatalogSerializer
 
@@ -73,4 +76,9 @@ class CourseCatalogAPIView(APIView):
             )
             .order_by("sort_order", "name", "id")
         )
-        return Response(CourseCatalogSerializer(courses, many=True).data)
+        data = cache_layer.cached_call(
+            cache_layer.make_key("courses"),
+            getattr(settings, "CACHE_TTL_PUBLIC", 300),
+            lambda: CourseCatalogSerializer(courses, many=True).data,
+        )
+        return Response(data)

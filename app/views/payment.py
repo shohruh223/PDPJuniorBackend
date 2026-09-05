@@ -7,19 +7,19 @@ from drf_yasg.utils import swagger_auto_schema
 
 from app.models.auth import StudentProfile
 from app.models.payment import StudentInvoice, StudentPaymentHistory
+from app.pagination import paginate_iterable
 from app.permissions import IsStudentUserRole
+from app.services.student import sync_coordinator
+from app.throttling import SyncThrottle
 from app.serializers.payment import (
     StudentInvoiceSerializer,
     StudentPaymentHistorySerializer,
-)
-from app.services.student.invoice_service import fetch_and_sync_student_invoices
-from app.services.student.payment_history_service import (
-    fetch_and_sync_student_payment_histories,
 )
 
 
 class StudentPaymentHistoryListAPIView(APIView):
     permission_classes = [IsAuthenticated, IsStudentUserRole]
+    throttle_classes = [SyncThrottle]
 
     @swagger_auto_schema(
         tags=["Student / Payments"],
@@ -96,7 +96,13 @@ class StudentPaymentHistoryListAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        _, sync_warning = fetch_and_sync_student_payment_histories(student_profile)
+        # Tashqi PDP so'rovi endi so'rovni bloklamaydi: u fon rejimida
+        # (Celery) bajariladi, javob esa bazadagi nusxadan quriladi.
+        _, sync_warning = sync_coordinator.ensure_fresh(
+            student_profile,
+            sync_coordinator.PAYMENTS,
+            force=sync_coordinator.wants_refresh(request),
+        )
 
         payment_histories = StudentPaymentHistory.objects.filter(
             student_profile=student_profile,
@@ -106,24 +112,23 @@ class StudentPaymentHistoryListAPIView(APIView):
             "-created_at",
         )
 
-        serializer = StudentPaymentHistorySerializer(
-            payment_histories,
-            many=True,
-        )
+        page, meta = paginate_iterable(request, payment_histories)
+        serializer = StudentPaymentHistorySerializer(page, many=True)
 
-        return Response(
-            {
-                "success": True,
-                "message": "Payment history ma'lumotlari",
-                "data": serializer.data,
-                "sync_warning": sync_warning,
-            },
-            status=status.HTTP_200_OK,
-        )
+        body = {
+            "success": True,
+            "message": "Payment history ma'lumotlari",
+            "data": serializer.data,
+            "sync_warning": sync_warning,
+        }
+        if meta:
+            body["meta"] = meta
+        return Response(body, status=status.HTTP_200_OK)
 
 
 class StudentInvoiceListAPIView(APIView):
     permission_classes = [IsAuthenticated, IsStudentUserRole]
+    throttle_classes = [SyncThrottle]
 
     @swagger_auto_schema(
         tags=["Student / Payments"],
@@ -221,7 +226,11 @@ class StudentInvoiceListAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        _, sync_warning = fetch_and_sync_student_invoices(student_profile)
+        _, sync_warning = sync_coordinator.ensure_fresh(
+            student_profile,
+            sync_coordinator.INVOICES,
+            force=sync_coordinator.wants_refresh(request),
+        )
 
         invoices = StudentInvoice.objects.filter(
             student_profile=student_profile,
@@ -230,17 +239,15 @@ class StudentInvoiceListAPIView(APIView):
             "-created_at",
         )
 
-        serializer = StudentInvoiceSerializer(
-            invoices,
-            many=True,
-        )
+        page, meta = paginate_iterable(request, invoices)
+        serializer = StudentInvoiceSerializer(page, many=True)
 
-        return Response(
-            {
-                "success": True,
-                "message": "Student invoices ma'lumotlari",
-                "data": serializer.data,
-                "sync_warning": sync_warning,
-            },
-            status=status.HTTP_200_OK,
-        )
+        body = {
+            "success": True,
+            "message": "Student invoices ma'lumotlari",
+            "data": serializer.data,
+            "sync_warning": sync_warning,
+        }
+        if meta:
+            body["meta"] = meta
+        return Response(body, status=status.HTTP_200_OK)

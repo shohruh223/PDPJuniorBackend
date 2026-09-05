@@ -18,7 +18,50 @@ def build_absolute_photo_url(user, request=None):
     return build_profile_image_url(user, request=request)
 
 
+def load_mentor_index() -> dict:
+    """Barcha faol mentorlarni BITTA so'rovda lug'atga yig'adi.
+
+    Ilgari `resolve_mentor_name` har bir o'quvchi uchun 1-2 ta alohida
+    so'rov bajarardi. `/api/student/ranking/me` esa 500 ta profilni
+    yuklagani uchun bitta sahifa ochilishi ~1000 SQL so'roviga aylanardi.
+    Endi mentorlar bir marta o'qiladi va xotirada qidiriladi.
+
+    Struktura: {branch_id: {"by_role": {role_lower: name}, "any": name}}
+    """
+    index: dict = {}
+    rows = (
+        Mentor.objects.filter(is_active=True, branch__is_active=True)
+        .order_by("branch_id", "id")
+        .values_list("branch_id", "role", "name")
+    )
+    for branch_id, role, name in rows:
+        bucket = index.setdefault(branch_id, {"by_role": {}, "any": None})
+        role_key = (role or "").strip().lower()
+        bucket["by_role"].setdefault(role_key, name)
+        if bucket["any"] is None:
+            bucket["any"] = name
+    return index
+
+
+def mentor_name_from_index(index: dict, branch_id, course_name: str | None) -> str:
+    if not branch_id:
+        return ""
+    bucket = index.get(branch_id)
+    if not bucket:
+        return ""
+    if course_name:
+        found = bucket["by_role"].get(course_name.strip().lower())
+        if found:
+            return found
+    return bucket["any"] or ""
+
+
 def resolve_mentor_name(branch_id, course_name: str | None) -> str:
+    """Bitta mentor nomi (kamdan-kam holatlar uchun).
+
+    Ro'yxatlarda BUNI ISHLATMANG — `load_mentor_index()` bilan bir marta
+    yuklab, `mentor_name_from_index()` orqali qidiring.
+    """
     if not branch_id:
         return ""
     mentors = Mentor.objects.filter(
@@ -43,7 +86,12 @@ def estimate_streak(profile: StudentProfile) -> int:
     return max(1, min(30, int(round(percent / 7))))
 
 
-def serialize_ranking_student(profile: StudentProfile, request=None, period: str = "total") -> dict:
+def serialize_ranking_student(
+    profile: StudentProfile,
+    request=None,
+    period: str = "total",
+    mentor_index: dict | None = None,
+) -> dict:
     user = profile.user
     course_name = profile.course.name if profile.course else "Python"
     branch_name = profile.branch.name if profile.branch else "PDP Junior"
@@ -52,12 +100,16 @@ def serialize_ranking_student(profile: StudentProfile, request=None, period: str
     total_points = profile.total_score or 0
     monthly_points = profile.local_test_score or max(0, int(total_points * 0.18))
 
+    if mentor_index is None:
+        mentor_index = load_mentor_index()
+    mentor = mentor_name_from_index(mentor_index, profile.branch_id, course_name)
+
     return {
         "id": str(profile.id),
         "name": user.full_name,
         "course": course_name,
         "branch": branch_name,
-        "mentor": resolve_mentor_name(profile.branch_id, course_name),
+        "mentor": mentor,
         "avatar": avatar or "",
         "totalPoints": total_points,
         "monthlyPoints": monthly_points,
@@ -99,7 +151,35 @@ def get_ranking_list(
     order_field = "-local_test_score" if period == "month" else "-total_score"
     qs = qs.order_by(order_field, "user__first_name")[:limit]
 
-    return [serialize_ranking_student(profile, request, period) for profile in qs]
+    # Mentorlar bir marta yuklanadi — profil boshiga so'rov yo'q.
+    mentor_index = load_mentor_index()
+    return [
+        serialize_ranking_student(profile, request, period, mentor_index=mentor_index)
+        for profile in qs
+    ]
+
+
+def get_student_rank(profile: StudentProfile, *, period: str = "total") -> int | None:
+    """O'quvchining o'rnini BITTA COUNT so'rovi bilan hisoblaydi.
+
+    Ilgari buning uchun 500 ta profil yuklanib, Python'da indeks
+    qidirilardi. Endi "mendan yuqori nechta o'quvchi bor" degan savolga
+    baza javob beradi.
+    """
+    score_field = "local_test_score" if period == "month" else "total_score"
+    my_score = getattr(profile, score_field, 0) or 0
+
+    base = StudentProfile.objects.filter(user__is_active=True, user__role="student")
+    higher = base.filter(**{f"{score_field}__gt": my_score}).count()
+
+    # Bir xil ballda tartib `user__first_name` bo'yicha — shu bilan
+    # o'rin barqaror bo'ladi.
+    same_score_before = (
+        base.filter(**{score_field: my_score})
+        .filter(user__first_name__lt=profile.user.first_name or "")
+        .count()
+    )
+    return higher + same_score_before + 1
 
 
 def get_student_course(user):

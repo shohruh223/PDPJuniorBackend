@@ -1,5 +1,4 @@
 from django.db import transaction
-from django.core import signing
 from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
@@ -8,12 +7,18 @@ from .auth_external_api import PDPAuthAPIClient
 from .student.external_student_api import PDPStudentAPIClient, PDPStudentAPIError
 from .student.student_dashboard_service import sync_student_dashboard_data
 
-PRE_RESET_TOKEN_SALT = "pre-reset-password"
-PRE_RESET_TOKEN_MAX_AGE = getattr(settings, "PRE_RESET_TOKEN_MAX_AGE", 300)
-
-
-class PreResetTokenError(Exception):
-    pass
+# DIQQAT: `PreResetTokenError` va token funksiyalari ilgari shu faylda
+# HAM, `password_reset_token.py` da HAM alohida aniqlangan edi. View
+# ikkinchisini import qilgani uchun `except PreResetTokenError` bu yerdagi
+# istisnoni ushlay olmasdi va muddati tugagan token 400 o'rniga 500
+# berardi. Endi yagona manba — `password_reset_token`.
+from .password_reset_token import (  # noqa: E402
+    PRE_RESET_TOKEN_MAX_AGE,
+    PRE_RESET_TOKEN_SALT,
+    PreResetTokenError,
+    make_pre_reset_token,
+    parse_pre_reset_token,
+)
 
 
 def split_full_name(full_name: str) -> tuple[str, str]:
@@ -25,34 +30,6 @@ def split_full_name(full_name: str) -> tuple[str, str]:
     first_name = parts[0]
     last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
     return first_name, last_name
-
-
-def make_pre_reset_token(*, phone_number: str, sms_code_id: str, sms_code: str) -> str:
-    payload = {
-        "phone_number": phone_number,
-        "sms_code_id": sms_code_id,
-        "sms_code": sms_code,
-        "purpose": "set_new_password",
-    }
-    return signing.dumps(payload, salt=PRE_RESET_TOKEN_SALT)
-
-
-def parse_pre_reset_token(token: str) -> dict:
-    try:
-        data = signing.loads(
-            token,
-            salt=PRE_RESET_TOKEN_SALT,
-            max_age=PRE_RESET_TOKEN_MAX_AGE,
-        )
-    except signing.SignatureExpired:
-        raise PreResetTokenError("Pre reset token muddati tugagan.")
-    except signing.BadSignature:
-        raise PreResetTokenError("Pre reset token noto‘g‘ri.")
-
-    if data.get("purpose") != "set_new_password":
-        raise PreResetTokenError("Pre reset token noto‘g‘ri maqsad uchun yaratilgan.")
-
-    return data
 
 
 def check_phone_via_external_api(phone_number: str) -> dict:
@@ -321,8 +298,18 @@ def _extract_student_identity(data: dict, fallback_phone: str) -> dict:
     }
 
 
-@transaction.atomic
 def check_sms_code_and_sync_user(*, sms_code_id: str, sms_code: str, phone_number: str) -> dict:
+    """SMS kodni tasdiqlaydi va lokal foydalanuvchini sinxronlaydi.
+
+    MUHIM: bu funksiya ilgari butunlay `@transaction.atomic` ichida edi va
+    o'sha tranzaksiya ichida ikkita tashqi HTTP so'rov bajarardi. PDP
+    sekin javob berganda baza tranzaksiyasi va ulanishi tarmoq kutish
+    vaqti davomida ochiq qolardi — bir vaqtda ko'p login bo'lsa
+    Postgres ulanishlari tugab, butun API to'xtardi.
+
+    Endi tarmoq chaqiruvlari tranzaksiyadan tashqarida, baza yozuvlari esa
+    `_persist_authenticated_student` ichidagi qisqa tranzaksiyada.
+    """
     client = PDPAuthAPIClient()
 
     payload = client.check_sms_code(
@@ -348,102 +335,111 @@ def check_sms_code_and_sync_user(*, sms_code_id: str, sms_code: str, phone_numbe
     external_phone = identity["external_phone"]
     group_name = identity["group_name"]
 
-    user, created = User.objects.get_or_create(
-        phone_number=external_phone,
-        defaults={
-            "role": User.RoleChoices.STUDENT,
-            "first_name": first_name,
-            "last_name": last_name,
-            "is_active": True,
-        },
-    )
+    # Baza yozuvlari qisqa tranzaksiyada — tarmoq chaqiruvlari undan
+    # tashqarida qoladi, ya'ni PDP sekinlashsa ham ulanish band bo'lmaydi.
+    with transaction.atomic():
+        user, created = User.objects.get_or_create(
+            phone_number=external_phone,
+            defaults={
+                "role": User.RoleChoices.STUDENT,
+                "first_name": first_name,
+                "last_name": last_name,
+                "is_active": True,
+            },
+        )
 
-    if created:
-        user.set_unusable_password()
-        user.save(update_fields=["password"])
+        if created:
+            user.set_unusable_password()
+            user.save(update_fields=["password"])
 
-    changed_fields = []
+        changed_fields = []
 
-    if user.role != User.RoleChoices.STUDENT:
-        user.role = User.RoleChoices.STUDENT
-        changed_fields.append("role")
+        if user.role != User.RoleChoices.STUDENT:
+            user.role = User.RoleChoices.STUDENT
+            changed_fields.append("role")
 
-    if first_name and user.first_name != first_name:
-        user.first_name = first_name
-        changed_fields.append("first_name")
+        if first_name and user.first_name != first_name:
+            user.first_name = first_name
+            changed_fields.append("first_name")
 
-    if last_name and user.last_name != last_name:
-        user.last_name = last_name
-        changed_fields.append("last_name")
+        if last_name and user.last_name != last_name:
+            user.last_name = last_name
+            changed_fields.append("last_name")
 
-    if not user.is_active:
-        user.is_active = True
-        changed_fields.append("is_active")
+        if not user.is_active:
+            user.is_active = True
+            changed_fields.append("is_active")
 
-    if changed_fields:
-        changed_fields.append("updated_at")
-        user.save(update_fields=list(dict.fromkeys(changed_fields)))
+        if changed_fields:
+            changed_fields.append("updated_at")
+            user.save(update_fields=list(dict.fromkeys(changed_fields)))
 
-    student_profile, _ = StudentProfile.objects.get_or_create(
-        user=user,
-        defaults={
-            "external_id": external_student_id,
-            "pdp_access_token": pdp_token,
-            "group_name": group_name,
-        },
-    )
+        student_profile, _ = StudentProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                "external_id": external_student_id,
+                "pdp_access_token": pdp_token,
+                "group_name": group_name,
+            },
+        )
 
-    profile_changed_fields = []
+        profile_changed_fields = []
 
-    if external_student_id and str(student_profile.external_id or "") != str(external_student_id):
-        student_profile.external_id = external_student_id
-        profile_changed_fields.append("external_id")
+        if external_student_id and str(student_profile.external_id or "") != str(external_student_id):
+            student_profile.external_id = external_student_id
+            profile_changed_fields.append("external_id")
 
-    if pdp_token and student_profile.pdp_access_token != pdp_token:
-        student_profile.pdp_access_token = pdp_token
-        profile_changed_fields.append("pdp_access_token")
+        if pdp_token and student_profile.pdp_access_token != pdp_token:
+            student_profile.pdp_access_token = pdp_token
+            profile_changed_fields.append("pdp_access_token")
 
-    if group_name and student_profile.group_name != group_name:
-        student_profile.group_name = group_name
-        profile_changed_fields.append("group_name")
+        if group_name and student_profile.group_name != group_name:
+            student_profile.group_name = group_name
+            profile_changed_fields.append("group_name")
 
-    old_course_id = student_profile.course_id
-    student_profile.assign_course_from_group(save=False)
+        old_course_id = student_profile.course_id
+        student_profile.assign_course_from_group(save=False)
 
-    if student_profile.course_id != old_course_id:
-        profile_changed_fields.append("course")
+        if student_profile.course_id != old_course_id:
+            profile_changed_fields.append("course")
 
-    if profile_changed_fields:
-        profile_changed_fields.append("updated_at")
-        student_profile.save(update_fields=list(dict.fromkeys(profile_changed_fields)))
+        if profile_changed_fields:
+            profile_changed_fields.append("updated_at")
+            student_profile.save(update_fields=list(dict.fromkeys(profile_changed_fields)))
 
     dashboard_sync_warning = None
 
     if student_profile.external_id and student_profile.pdp_access_token:
+        # Login paytida dashboard ma'lumoti ham kerak, lekin uni kutib
+        # turish login javobini sekinlashtiradi. Celery yoqilgan bo'lsa
+        # sinxronizatsiya fon rejimiga uzatiladi; aks holda bu yerda
+        # bajariladi, lekin tranzaksiyadan TASHQARIDA.
+        from app.services.student import sync_coordinator
+
         try:
-            student_api_client = PDPStudentAPIClient(
-                token=student_profile.pdp_access_token,
+            synced, warning = sync_coordinator.ensure_fresh(
+                student_profile, sync_coordinator.DASHBOARD, force=False
             )
-
-            external_dashboard_payload = student_api_client.get_student_info(
-                str(student_profile.external_id)
-            )
-
-            student_profile, _ = sync_student_dashboard_data(
-                student_profile=student_profile,
-                external_payload=external_dashboard_payload,
-            )
-
-            user = student_profile.user
-
-        except PDPStudentAPIError as exc:
+            dashboard_sync_warning = warning
+            if synced:
+                student_profile.refresh_from_db()
+                user = student_profile.user
+        except Exception as exc:  # sinxronizatsiya login'ni to'xtatmasin
             dashboard_sync_warning = str(exc)
 
     refresh = RefreshToken.for_user(user)
     access = refresh.access_token
 
+    # XAVFSIZLIK: `pdp_token` — bu backend adminapi.pdp.uz ga murojaat
+    # qilishda ishlatadigan haqiqiy credential. Uni brauzerga berish
+    # kerak emas: mijozga faqat quyidagi JWT kerak. Frontend hozircha
+    # bu maydonni o'qiyotgan bo'lishi mumkin, shuning uchun o'chirish
+    # env orqali boshqariladi — frontend tekshirilgach EXPOSE_PDP_TOKEN=0
+    # qo'ying.
+    expose_pdp_token = getattr(settings, "EXPOSE_PDP_TOKEN", True)
+
     return {
-        "pdp_token": pdp_token,
+        "pdp_token": pdp_token if expose_pdp_token else None,
         "access": str(access),
         "refresh": str(refresh),
         "dashboard_sync_warning": dashboard_sync_warning,

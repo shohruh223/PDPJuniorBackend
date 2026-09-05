@@ -1,7 +1,6 @@
 from app.models.auth import StudentProfile
 from app.services.profile_image_service import build_profile_image_url
-from app.services.student.external_student_api import PDPStudentAPIClient, PDPStudentAPIError
-from app.services.student.student_dashboard_service import sync_student_dashboard_data
+from app.services.student import sync_coordinator
 
 
 def build_absolute_photo_url(user, request=None):
@@ -29,48 +28,41 @@ def build_avatar(user):
 
 
 def get_student_dashboard_data(user, request=None):
+    """Dashboard ma'lumotlari — har doim bazadan.
+
+    Ilgari bu funksiya har chaqirilganda `adminapi.pdp.uz` ga bloklovchi
+    HTTP so'rov yuborardi. Endi tashqi ma'lumot fon rejimida (Celery)
+    yangilanadi va bu yerda faqat saqlangan snapshot o'qiladi, ya'ni
+    javob vaqti tashqi servisga bog'liq emas.
+
+    `?refresh=1` bilan mijoz majburiy yangilashni so'ray oladi (bu
+    endpointda SyncThrottle bilan cheklangan).
+    """
     student_profile = (
         StudentProfile.objects
         .select_related("user", "course")
         .get(user=user)
     )
 
-    sync_warning = None
+    force = sync_coordinator.wants_refresh(request) if request is not None else False
+    _, sync_warning = sync_coordinator.ensure_fresh(
+        student_profile, sync_coordinator.DASHBOARD, force=force
+    )
+    if force:
+        student_profile.refresh_from_db()
+
+    snapshot = student_profile.external_snapshot or {}
     external_extra = {
-        "lesson_coin": 0,
-        "lesson_attendance": "",
-        "lesson_status": "",
-        "lesson_id": None,
-        "lesson_date": [],
-        "lesson_start_time": None,
-        "lesson_end_time": None,
-        "module_barchart": [],
-        "student_debtors": [],
+        "lesson_coin": snapshot.get("lesson_coin", 0),
+        "lesson_attendance": snapshot.get("lesson_attendance", ""),
+        "lesson_status": snapshot.get("lesson_status", ""),
+        "lesson_id": snapshot.get("lesson_id"),
+        "lesson_date": snapshot.get("lesson_date", []),
+        "lesson_start_time": snapshot.get("lesson_start_time"),
+        "lesson_end_time": snapshot.get("lesson_end_time"),
+        "module_barchart": snapshot.get("module_barchart", []),
+        "student_debtors": snapshot.get("student_debtors", []),
     }
-
-    if student_profile.external_id and student_profile.pdp_access_token:
-        try:
-            client = PDPStudentAPIClient(token=student_profile.pdp_access_token)
-            external_payload = client.get_student_info(str(student_profile.external_id))
-
-            student_profile, parsed = sync_student_dashboard_data(
-                student_profile,
-                external_payload,
-            )
-
-            external_extra = {
-                "lesson_coin": parsed["lesson_coin"],
-                "lesson_attendance": parsed["lesson_attendance"],
-                "lesson_status": parsed["lesson_status"],
-                "lesson_id": parsed["lesson_id"],
-                "lesson_date": parsed["lesson_date"],
-                "lesson_start_time": parsed["lesson_start_time"],
-                "lesson_end_time": parsed["lesson_end_time"],
-                "module_barchart": parsed["module_barchart"],
-                "student_debtors": parsed["student_debtors"],
-            }
-        except PDPStudentAPIError as exc:
-            sync_warning = str(exc)
 
     return {
         "student": {
@@ -96,6 +88,7 @@ def get_student_dashboard_data(user, request=None):
         "coins": {
             "api_coin": student_profile.api_coin,
             "test_coin": student_profile.test_coin,
+            "spent_coin": student_profile.spent_coin,
             "total_coin": student_profile.total_coin,
             "lesson_coin": external_extra["lesson_coin"],
         },

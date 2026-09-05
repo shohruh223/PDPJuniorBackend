@@ -79,23 +79,16 @@ def purchase_product(*, profile: StudentProfile, product_id) -> tuple[CoinOrder 
     if balance_before < product.price:
         return None, "Coin yetarli emas."
 
-    remaining = product.price
-    if (profile.test_coin or 0) >= remaining:
-        profile.test_coin -= remaining
-    else:
-        remaining -= profile.test_coin or 0
-        profile.test_coin = 0
-        profile.api_coin = max(0, (profile.api_coin or 0) - remaining)
-
+    # Coin ikki manbadan keladi: `api_coin` (PDP boshqaradi, har
+    # sinxronizatsiyada qayta yoziladi) va `test_coin` (biz beramiz).
+    # Shuning uchun xarid ularning hech qaysisidan yechilmaydi — sarflangan
+    # miqdor alohida `spent_coin` da yig'iladi va balans
+    #   api_coin + test_coin - spent_coin
+    # sifatida hisoblanadi. Aks holda keyingi PDP sinxronizatsiyasi
+    # xaridni bekor qilib, cheksiz bepul sovg'aga yo'l ochardi.
+    profile.spent_coin = (profile.spent_coin or 0) + product.price
     profile.recalculate_total_coin(save=False)
-    profile.save(
-        update_fields=[
-            "test_coin",
-            "api_coin",
-            "total_coin",
-            "updated_at",
-        ]
-    )
+    profile.save(update_fields=["spent_coin", "total_coin", "updated_at"])
 
     product.stock -= 1
     product.save(update_fields=["stock", "updated_at"])

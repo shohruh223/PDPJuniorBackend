@@ -95,7 +95,9 @@ def sync_student_dashboard_data(student_profile: StudentProfile, external_payloa
             student_profile.user.first_name = first_name
             changed_user_fields.append("first_name")
 
-        if last_name != student_profile.user.last_name:
+        # Bo'sh familiya saqlangan qiymatni o'chirmasin: PDP ba'zan
+        # bitta so'zli fullName qaytaradi va split natijasi ("Ism", "").
+        if last_name and last_name != student_profile.user.last_name:
             student_profile.user.last_name = last_name
             changed_user_fields.append("last_name")
 
@@ -134,6 +136,24 @@ def sync_student_dashboard_data(student_profile: StudentProfile, external_payloa
     student_profile.assign_course_from_group(save=False)
     if student_profile.course_id != old_course_id:
         changed_profile_fields.append("course")
+
+    # Bazada ustuni yo'q tashqi ma'lumotlar (joriy dars, moduleBarchart,
+    # studentDebtors) snapshotga yoziladi — shunda dashboard endpointi
+    # tashqi API'ni kutmasdan, bazadan javob bera oladi.
+    snapshot = {
+        "lesson_coin": parsed.get("lesson_coin", 0),
+        "lesson_attendance": parsed.get("lesson_attendance", ""),
+        "lesson_status": parsed.get("lesson_status", ""),
+        "lesson_id": parsed.get("lesson_id"),
+        "lesson_date": parsed.get("lesson_date", []),
+        "lesson_start_time": parsed.get("lesson_start_time"),
+        "lesson_end_time": parsed.get("lesson_end_time"),
+        "module_barchart": parsed.get("module_barchart", []),
+        "student_debtors": parsed.get("student_debtors", []),
+    }
+    if student_profile.external_snapshot != snapshot:
+        student_profile.external_snapshot = snapshot
+        changed_profile_fields.append("external_snapshot")
 
     student_profile.last_synced_at = timezone.now()
     changed_profile_fields.append("last_synced_at")

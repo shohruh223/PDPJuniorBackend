@@ -206,6 +206,19 @@ class StudentProfile(BaseModel):
     last_synced_at = models.DateTimeField(blank=True, null=True)
     pdp_access_token = models.TextField(blank=True, null=True)
 
+    # Do'konda sarflangan coin. Ilgari xarid to'g'ridan-to'g'ri api_coin dan
+    # yechilardi, keyingi PDP sinxronizatsiyasi esa uni qaytarib qo'yardi —
+    # ya'ni cheksiz bepul xarid. Endi api_coin faqat PDP tomonidan
+    # boshqariladi, sarflangan miqdor esa shu yerda alohida yig'iladi.
+    spent_coin = models.PositiveIntegerField(default=0)
+
+    # PDP dashboard endpointidan kelgan, bazada ustuni yo'q ma'lumotlar
+    # (joriy dars, moduleBarchart, studentDebtors). Ilgari ular faqat
+    # jonli javobda bo'lgani uchun dashboard har chaqirilganda tashqi API
+    # ga bloklovchi so'rov yuborishga majbur edi. Endi bu yerda saqlanadi
+    # va endpoint bazadan o'qiydi.
+    external_snapshot = models.JSONField(default=dict, blank=True)
+
     class Meta:
         db_table = "student_profiles"
         ordering = ["-created_at"]
@@ -243,6 +256,10 @@ class StudentProfile(BaseModel):
                 name="studentprofile_total_coin_gte_0",
             ),
             models.CheckConstraint(
+                check=models.Q(spent_coin__gte=0),
+                name="studentprofile_spent_coin_gte_0",
+            ),
+            models.CheckConstraint(
                 check=models.Q(attendance_average_percent__gte=0)
                 & models.Q(attendance_average_percent__lte=100),
                 name="studentprofile_attendance_between_0_100",
@@ -270,14 +287,50 @@ class StudentProfile(BaseModel):
         self.total_coin = self.calculate_total_coin()
 
     def save(self, *args, **kwargs):
-        self.full_clean()
+        """Validatsiya faqat to'liq saqlashda ishlaydi.
+
+        Ilgari bu yerda har safar `full_clean()` chaqirilardi. U
+        `update_fields` ni e'tiborsiz qoldiradi va har bir yozuvda
+        qo'shimcha `validate_unique` SELECT'lari hamda constraint
+        tekshiruvini bajaradi — ya'ni har bir to'g'ri javob va har bir
+        do'kon xaridi ortiqcha so'rovlar keltirib chiqarardi. Bundan
+        tashqari guruh/kurs mos kelmasa u issiq yo'lda `ValidationError`
+        (500) berardi.
+
+        Endi `update_fields` bilan chaqirilgan tor yangilanishlar (coin,
+        ball, sinxronizatsiya belgisi) validatsiyadan o'tmaydi; to'liq
+        saqlash — admin, forma, yangi obyekt — avvalgidek tekshiriladi.
+        `skip_validation=True` bilan uni ataylab o'chirish ham mumkin.
+        """
+        skip_validation = kwargs.pop("skip_validation", False)
+        update_fields = kwargs.get("update_fields")
+
+        if update_fields is None:
+            if not skip_validation:
+                self.full_clean()
+            return super().save(*args, **kwargs)
+
+        # Tor yangilanish: ball/coin manbalari o'zgargan bo'lsa, jami
+        # ko'rsatkichlar ham o'sha yozuvda yangilanadi — aks holda
+        # total_* bazada eskirib qoladi.
+        fields = set(update_fields)
+        if fields & {"api_score", "local_test_score"}:
+            self.total_score = self.calculate_total_score()
+            fields.add("total_score")
+        if fields & {"api_coin", "test_coin", "spent_coin"}:
+            self.total_coin = self.calculate_total_coin()
+            fields.add("total_coin")
+        if fields != set(update_fields):
+            fields.add("updated_at")
+            kwargs["update_fields"] = sorted(fields)
         return super().save(*args, **kwargs)
 
     def calculate_total_score(self):
         return (self.api_score or 0) + (self.local_test_score or 0)
 
     def calculate_total_coin(self):
-        return (self.api_coin or 0) + (self.test_coin or 0)
+        earned = (self.api_coin or 0) + (self.test_coin or 0)
+        return max(0, earned - (self.spent_coin or 0))
 
     def recalculate_total_score(self, save=True):
         self.total_score = self.calculate_total_score()

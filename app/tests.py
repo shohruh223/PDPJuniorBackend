@@ -312,8 +312,12 @@ class ShopPurchaseTests(TestCase):
         self.product.refresh_from_db()
         order.refresh_from_db()
 
-        self.assertEqual(self.profile.test_coin, 0)
-        self.assertEqual(self.profile.api_coin, 3)
+        # Xarid endi api_coin/test_coin dan yechmaydi — u PDP boshqaradigan
+        # maydon va keyingi sinxronizatsiyada qayta yozilardi. Sarflangan
+        # miqdor alohida spent_coin da yig'iladi.
+        self.assertEqual(self.profile.test_coin, 10)
+        self.assertEqual(self.profile.api_coin, 5)
+        self.assertEqual(self.profile.spent_coin, 12)
         self.assertEqual(self.profile.total_coin, 3)
         self.assertEqual(self.product.stock, 0)
         self.assertEqual(order.status, CoinOrder.StatusChoices.PENDING)
@@ -324,6 +328,28 @@ class ShopPurchaseTests(TestCase):
         self.assertEqual(order.balance_before, 15)
         self.assertEqual(order.balance_after, 3)
         self.assertIn("TELEGRAM_BOT_TOKEN", order.telegram_error)
+
+    @override_settings(TELEGRAM_BOT_TOKEN="")
+    def test_pdp_sync_does_not_refund_a_purchase(self):
+        """Regressiya: ilgari xarid keyingi dashboard sinxronida bekor bo'lardi."""
+        from app.services.student.student_dashboard_service import sync_student_dashboard_data
+
+        with self.captureOnCommitCallbacks(execute=True):
+            purchase_product(profile=self.profile, product_id=self.product.pk)
+
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.total_coin, 3)
+
+        # PDP xuddi o'sha activeCoin qiymatini qaytaradi (xaridni bilmaydi).
+        sync_student_dashboard_data(
+            student_profile=self.profile,
+            external_payload={"data": {"activeCoin": 5, "group": "P-10", "student": {}, "lesson": {}}},
+        )
+        self.profile.refresh_from_db()
+
+        self.assertEqual(self.profile.api_coin, 5)
+        self.assertEqual(self.profile.spent_coin, 12)
+        self.assertEqual(self.profile.total_coin, 3, "Sinxronizatsiya coin'ni qaytarib bermasligi kerak")
 
     def test_failed_purchase_does_not_change_balance_or_stock(self):
         expensive = CoinProduct.objects.create(

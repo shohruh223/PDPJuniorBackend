@@ -6,6 +6,9 @@ from rest_framework import status
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+from django.conf import settings
+
+from app.services.portal import cache_layer
 from app.models import Branch
 from app.serializers.branch import BranchSerializer
 
@@ -111,17 +114,20 @@ Faqat active filiallar qaytadi.
         if is_opened:
             branches = branches.filter(is_opened=is_opened)
 
-        serializer = BranchSerializer(
-            branches,
-            many=True,
-            context={"request": request},
+        data = cache_layer.cached_call(
+            cache_layer.make_key("branches", opened=is_opened or "-",
+                                 host=cache_layer.request_host(request)),
+            getattr(settings, "CACHE_TTL_PUBLIC", 300),
+            lambda: BranchSerializer(
+                branches, many=True, context={"request": request}
+            ).data,
         )
 
         return Response(
             {
                 "success": True,
                 "message": "Filiallar ro‘yxati",
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )

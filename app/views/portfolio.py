@@ -6,6 +6,9 @@ from rest_framework import status
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+from django.conf import settings
+
+from app.services.portal import cache_layer
 from app.models import Portfolio
 from app.serializers.portfolio import PortfolioSerializer
 
@@ -72,17 +75,19 @@ Faqat active portfoliolar qaytadi.
     def get(self, request, *args, **kwargs):
         portfolios = Portfolio.objects.filter(is_active=True)
 
-        serializer = PortfolioSerializer(
-            portfolios,
-            many=True,
-            context={"request": request},
+        data = cache_layer.cached_call(
+            cache_layer.make_key("portfolios", host=cache_layer.request_host(request)),
+            getattr(settings, "CACHE_TTL_PUBLIC", 300),
+            lambda: PortfolioSerializer(
+                portfolios, many=True, context={"request": request}
+            ).data,
         )
 
         return Response(
             {
                 "success": True,
                 "message": "Portfoliolar ro‘yxati",
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )

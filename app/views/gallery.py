@@ -5,6 +5,10 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.conf import settings
+from django.db.models import F
+
+from app.services.portal import cache_layer
 from app.services.portal.gallery_service import get_gallery_posts, serialize_gallery_post
 from app.models.gallery import GalleryPost
 
@@ -69,7 +73,11 @@ class GalleryListAPIView(APIView):
         },
     )
     def get(self, request, *args, **kwargs):
-        items = get_gallery_posts(request)
+        items = cache_layer.cached_call(
+            cache_layer.make_key("gallery", host=cache_layer.request_host(request)),
+            getattr(settings, "CACHE_TTL_GALLERY", 300),
+            lambda: get_gallery_posts(request),
+        )
         return Response(
             {
                 "success": True,
@@ -132,8 +140,10 @@ class GalleryDetailAPIView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        # F() ifodasi bilan atomik o'sish: ilgari o'qish-o'zgartirish-yozish
+        # edi va parallel ochilishlar bir-birini bosib ketardi.
+        GalleryPost.objects.filter(pk=post.pk).update(views_count=F("views_count") + 1)
         post.views_count = (post.views_count or 0) + 1
-        post.save(update_fields=["views_count", "updated_at"])
 
         return Response(
             {

@@ -5,6 +5,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.conf import settings
+
+from app.services.portal import cache_layer
 from app.services.portal.heroes_service import build_heroes_portal
 
 
@@ -93,11 +96,20 @@ class HeroesPortalAPIView(APIView):
         view = request.query_params.get("view", "all")
         query = request.query_params.get("q") or request.query_params.get("query", "")
 
-        payload = build_heroes_portal(
-            month=month,
-            view=view,
-            query=query,
-            request=request,
+        cache_key = cache_layer.make_key(
+            "heroes",
+            month=month or "-", view=view, q=query,
+            host=cache_layer.request_host(request),
+        )
+        payload = cache_layer.cached_call(
+            cache_key,
+            getattr(settings, "CACHE_TTL_HEROES", 300),
+            lambda: build_heroes_portal(
+                month=month,
+                view=view,
+                query=query,
+                request=request,
+            ),
         )
 
         return Response(

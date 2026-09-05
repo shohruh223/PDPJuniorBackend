@@ -6,6 +6,9 @@ from rest_framework import status
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
 
+from django.conf import settings
+
+from app.services.portal import cache_layer
 from app.models import Mentor
 from app.serializers.mentor import MentorSerializer
 
@@ -110,17 +113,20 @@ Frontend mentorlarini qaytaradi. Parametrlar yuborilmasa barcha mos mentorlar ol
         if role:
             mentors = mentors.filter(role__iexact=role)
 
-        serializer = MentorSerializer(
-            mentors,
-            many=True,
-            context={"request": request},
+        data = cache_layer.cached_call(
+            cache_layer.make_key("mentors", branch=branch or "-", role=role or "-",
+                                 host=cache_layer.request_host(request)),
+            getattr(settings, "CACHE_TTL_PUBLIC", 300),
+            lambda: MentorSerializer(
+                mentors, many=True, context={"request": request}
+            ).data,
         )
 
         return Response(
             {
                 "success": True,
                 "message": "Mentorlar ro‘yxati",
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )

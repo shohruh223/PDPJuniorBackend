@@ -520,6 +520,11 @@ ESKIZ_EMAIL = os.getenv("ESKIZ_EMAIL", "test@gmail.com")
 ESKIZ_PASSWORD = os.getenv("ESKIZ_PASSWORD", "")
 ESKIZ_SENDER = os.getenv("ESKIZ_SENDER", "4546")
 
+# Login javobida PDP bearer tokenini mijozga berishmi?
+# Frontend uni ishlatmasligi tekshirilgach 0 ga o'tkazing — bu tashqi
+# servis credentiali va brauzerda turishi kerak emas.
+EXPOSE_PDP_TOKEN = env_bool("EXPOSE_PDP_TOKEN", True)
+
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_SHOP_CHAT_ID = os.getenv("TELEGRAM_SHOP_CHAT_ID", "")
 

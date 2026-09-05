@@ -89,23 +89,40 @@ def finalize_unfinalized_old_sessions(*, batch_size=200):
     return {"sessions_finalized": finalized}
 
 
-def purge_old_test_session_details(*, batch_size=500):
+def purge_old_test_session_details(*, batch_size=500, max_batches=200):
     """
     Eski test javob/savol detailini o'chiradi.
     TestSession summary (percent, correct_count, ...) saqlanadi.
+
+    ILGARI BU SIKL HECH QACHON TUGAMASDI: tanlash sharti `TestSession`
+    ustida edi, o'chirish esa faqat bolalarini (javob va savollarni)
+    olib tashlardi. Sessiya o'zi na o'chirilardi, na belgilanardi, ya'ni
+    keyingi aylanishda aynan o'sha ID'lar qaytardi va `break` hech qachon
+    ishlamasdi. Celery uni har 6 soatda timeout bilan o'ldirar, detallar
+    esa tozalanmasdi.
+
+    Endi sikl faqat **hali detali bor** sessiyalarni tanlaydi
+    (`items__isnull=False`), shuning uchun har aylanishda to'plam
+    kichrayadi va sikl tabiiy tugaydi. `max_batches` — qo'shimcha
+    xavfsizlik cheklovi.
     """
     from app.models.test import TestSession, TestSessionAnswer, TestSessionQuestion
 
     answers_deleted = 0
     questions_deleted = 0
+    batches = 0
 
-    while True:
+    while batches < max_batches:
+        batches += 1
         old_session_ids = list(
             TestSession.objects.filter(
                 is_finished=True,
                 finished_at__lt=_detail_cutoff(),
                 finalized_at__isnull=False,
-            ).values_list("id", flat=True)[:batch_size]
+                items__isnull=False,
+            )
+            .values_list("id", flat=True)
+            .distinct()[:batch_size]
         )
         if not old_session_ids:
             break
@@ -119,9 +136,14 @@ def purge_old_test_session_details(*, batch_size=500):
         answers_deleted += deleted_answers
         questions_deleted += deleted_questions
 
+        if not deleted_questions:
+            # Savollari yo'q, faqat javoblari bor holat — takrorlanmasin.
+            break
+
     return {
         "answers_deleted": answers_deleted,
         "session_questions_deleted": questions_deleted,
+        "batches": batches,
     }
 
 
@@ -185,6 +207,12 @@ def dedupe_finished_test_sessions(*, group_batch_size=100):
                 lesson_id=group["lesson_id"],
                 is_finished=True,
                 finalized_at__isnull=False,
+                # MUHIM: keeper faqat retention oynasidan o'tgan
+                # sessiyalar orasidan tanlanadi, shuning uchun o'chirish
+                # ham aynan shu oyna bilan cheklanishi shart. Aks holda
+                # o'quvchining kechagi (eng yangi va eng yaxshi) urinishi
+                # eski dublikatlar sababli o'chib ketardi.
+                finished_at__lt=_dedupe_cutoff(),
             )
             .annotate(item_count=Count("items"))
             .filter(item_count=0)

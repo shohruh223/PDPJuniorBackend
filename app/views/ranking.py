@@ -5,6 +5,9 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.conf import settings
+
+from app.services.portal import cache_layer
 from app.permissions import IsStudentUserRole
 from app.services.portal.ranking_service import get_ranking_list
 
@@ -74,12 +77,24 @@ class RankingListAPIView(APIView):
         context = request.query_params.get("context", "")
         query = request.query_params.get("q") or request.query_params.get("query", "")
 
-        students = get_ranking_list(
-            scope=scope,
-            period=period,
-            context=context,
-            query=query,
-            request=request,
+        # Reyting barcha foydalanuvchi uchun bir xil — natija keshlanadi.
+        # Qidiruv (`q`) bilan kelgan so'rovlar ham keshlanadi, lekin
+        # kalitga qidiruv matni kiradi.
+        cache_key = cache_layer.make_key(
+            "ranking",
+            scope=scope, period=period, context=context, q=query,
+            host=cache_layer.request_host(request),
+        )
+        students = cache_layer.cached_call(
+            cache_key,
+            getattr(settings, "CACHE_TTL_RANKING", 120),
+            lambda: get_ranking_list(
+                scope=scope,
+                period=period,
+                context=context,
+                query=query,
+                request=request,
+            ),
         )
 
         return Response(
@@ -147,17 +162,15 @@ class StudentRankingMeAPIView(APIView):
         period = request.query_params.get("period", "total")
         context = request.query_params.get("context", "")
 
-        students = get_ranking_list(
-            scope=scope,
-            period=period,
-            context=context,
-            request=request,
-            limit=500,
+        # Ilgari bu yerda 500 ta profil yuklanib, Python'da indeks
+        # qidirilardi (~1000 SQL so'rovi). Endi o'rin bitta COUNT bilan
+        # hisoblanadi va faqat o'z profilimiz serializatsiya qilinadi.
+        from app.services.portal.ranking_service import (
+            get_student_rank,
+            serialize_ranking_student,
         )
-        my_id = str(profile.id)
-        rank = next((index + 1 for index, item in enumerate(students) if item["id"] == my_id), None)
 
-        from app.services.portal.ranking_service import serialize_ranking_student
+        rank = get_student_rank(profile, period=period)
 
         return Response(
             {
