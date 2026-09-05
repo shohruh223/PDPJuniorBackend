@@ -813,3 +813,59 @@ class ExternalErrorLeakTests(TestCase):
 
         self.assertNotIn("NullPointer", str(ctx.exception))
         self.assertNotIn("com.pdp.internal", str(ctx.exception))
+
+
+class CompatUrlTests(TestCase):
+    """Eski URL aliaslari: kuzatiladi, kerak bo'lsa o'chiriladi."""
+
+    def setUp(self):
+        cache.clear()
+        Course.objects.create(name="Python")
+
+    def test_compat_url_works_and_is_marked_deprecated(self):
+        response = APIClient().get("/api/courses/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers.get("Deprecation"), "true")
+
+    def test_canonical_url_is_not_marked(self):
+        response = APIClient().get("/api/courses")
+        self.assertEqual(response.status_code, 200)
+        self.assertIsNone(response.headers.get("Deprecation"))
+
+    @override_settings(COMPAT_URLS_ENABLED=False)
+    def test_compat_url_can_be_switched_off(self):
+        self.assertEqual(APIClient().get("/api/courses/").status_code, 410)
+        # kanonik URL ta'sirlanmaydi
+        self.assertEqual(APIClient().get("/api/courses").status_code, 200)
+
+    def test_compat_view_inherits_protections(self):
+        """Compat view asl view'ning merosxo'ri — himoyalar ko'chadi."""
+        from app.urls import _hidden_view
+        from app.views.frontend_auth_view import FrontendResendSmsAPIView
+        from app.throttling import SmsThrottle
+
+        compat = _hidden_view(FrontendResendSmsAPIView)
+        self.assertIn(SmsThrottle, compat.view_class.throttle_classes)
+
+
+class PdpTokenExposureTests(TestCase):
+    """Frontend `pdp_token` ni ishlatmaydi — u javobda bo'lmasligi kerak."""
+
+    def test_default_is_hidden(self):
+        from django.conf import settings as dj
+
+        self.assertFalse(
+            getattr(dj, "EXPOSE_PDP_TOKEN", True),
+            "EXPOSE_PDP_TOKEN default 0 bo'lishi kerak.",
+        )
+
+    def test_adapter_hides_token_by_default(self):
+        from app.utils.frontend_adapters import auth_login_verify_response
+
+        body = auth_login_verify_response({
+            "access": "a", "refresh": "r", "pdp_token": None,
+            "student": {"id": "1", "first_name": "A", "last_name": "B",
+                        "full_name": "A B", "phone_number": "+998901234567",
+                        "group_name": "P-1"},
+        })
+        self.assertIsNone(body.get("pdp_token"))

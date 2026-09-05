@@ -527,9 +527,25 @@ ESKIZ_SENDER = os.getenv("ESKIZ_SENDER", "4546")
 RANKING_ESTIMATE_MISSING = env_bool("RANKING_ESTIMATE_MISSING", False)
 
 # Login javobida PDP bearer tokenini mijozga berishmi?
-# Frontend uni ishlatmasligi tekshirilgach 0 ga o'tkazing — bu tashqi
-# servis credentiali va brauzerda turishi kerak emas.
-EXPOSE_PDP_TOKEN = env_bool("EXPOSE_PDP_TOKEN", True)
+#
+# TEKSHIRILDI (2026-09-05): pdp-junior-test.netlify.app dagi 20 ta
+# frontend JS faylining birortasida ham `pdp_token` ishlatilmaydi —
+# shuning uchun default 0 ga o'tkazildi. Bu tashqi servis credentiali
+# va brauzerda turishi kerak emas.
+#
+# Agar boshqa mijoz (mobil ilova va h.k.) uni kutayotgan bo'lsa,
+# EXPOSE_PDP_TOKEN=1 bilan vaqtincha qaytarish mumkin.
+EXPOSE_PDP_TOKEN = env_bool("EXPOSE_PDP_TOKEN", False)
+
+# Eski (compat) URL aliaslari yoqilganmi?
+#
+# TEKSHIRILDI (2026-09-05): frontend faqat kanonik URL'larni chaqiradi,
+# 53 ta aliasdan BIRORTASI ham ishlatilmaydi. Ular hozircha yoqilgan,
+# lekin har chaqirilganda logga "compat URL" ogohlantirishi yoziladi.
+# Bir-ikki hafta loglar toza bo'lsa COMPAT_URLS_ENABLED=0 qo'ying,
+# so'ng app/urls.py dagi compat blokini butunlay o'chirib tashlang.
+COMPAT_URLS_ENABLED = env_bool("COMPAT_URLS_ENABLED", True)
+COMPAT_URLS_SUNSET = os.getenv("COMPAT_URLS_SUNSET", "")
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_SHOP_CHAT_ID = os.getenv("TELEGRAM_SHOP_CHAT_ID", "")

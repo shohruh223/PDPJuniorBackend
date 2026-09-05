@@ -1,4 +1,10 @@
+import logging
+
+from django.conf import settings
+from django.http import HttpResponseGone
 from django.urls import path
+
+logger = logging.getLogger(__name__)
 
 from app.views.auth_view import (
     EnterPasswordAPIView,
@@ -167,12 +173,63 @@ urlpatterns = [
 ]
 
 
+def _make_compat_dispatch(base_class):
+    """Eski URL chaqirilganini logga yozadigan `dispatch` yaratadi.
+
+    Nima uchun kerak. `app/urls.py` da 53 ta orqaga moslik aliasi bor.
+    Frontend tekshirildi (2026-09-05, 20 ta JS fayl) — u faqat kanonik
+    URL'larni chaqiradi, ya'ni aliaslar ehtimol umuman ishlatilmayapti.
+    Lekin buni "ehtimol" emas, "aniq" bilish uchun ularni ko'rinadigan
+    qilamiz: har chaqiruv logga tushadi va javobda `Deprecation`
+    sarlavhasi keladi.
+
+    Loglar bir-ikki hafta toza bo'lsa `COMPAT_URLS_ENABLED=0` qo'ying —
+    shunda aliaslar 410 Gone qaytaradi. Undan keyin pastdagi compat
+    blokini butunlay o'chirish xavfsiz.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        if not getattr(settings, "COMPAT_URLS_ENABLED", True):
+            logger.warning(
+                "compat-url o'chirilgan, lekin chaqirildi: %s %s (ua=%s)",
+                request.method,
+                request.path,
+                request.META.get("HTTP_USER_AGENT", "")[:120],
+            )
+            return HttpResponseGone("Bu URL eskirgan. Kanonik manzildan foydalaning.")
+
+        logger.warning(
+            "compat-url chaqirildi: %s %s (ua=%s, ref=%s)",
+            request.method,
+            request.path,
+            request.META.get("HTTP_USER_AGENT", "")[:120],
+            request.META.get("HTTP_REFERER", "")[:120],
+        )
+        response = base_class.dispatch(self, request, *args, **kwargs)
+        response["Deprecation"] = "true"
+        sunset = getattr(settings, "COMPAT_URLS_SUNSET", "")
+        if sunset:
+            response["Sunset"] = sunset
+        return response
+
+    return dispatch
+
+
 def _hidden_view(view_class):
-    """Compatibility URL ishlaydi, ammo Swagger'da takroran ko'rinmaydi."""
+    """Compatibility URL ishlaydi, ammo Swagger'da takroran ko'rinmaydi.
+
+    DIQQAT: yaratilgan klass asl view'ning MEROSXO'RI, ya'ni
+    `permission_classes`, `throttle_classes` va boshqa himoyalar
+    avtomatik ko'chadi — ularni ikki joyda takrorlash shart emas.
+    """
     hidden_class = type(
         f"SwaggerHidden{view_class.__name__}",
         (view_class,),
-        {"swagger_schema": None, "__module__": view_class.__module__},
+        {
+            "swagger_schema": None,
+            "__module__": view_class.__module__,
+            "dispatch": _make_compat_dispatch(view_class),
+        },
     )
     return hidden_class.as_view()
 

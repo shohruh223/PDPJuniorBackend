@@ -223,8 +223,10 @@ Yuk sinovi paytida `THROTTLE_ENABLED=0`.
 - [ ] `python manage.py migrate` (yangi `0014` migratsiyasi bor)
 - [ ] `python manage.py test app` — 42 test o'tadi
 - [ ] `/health/ready` `"status": "ready"` qaytaradi
-- [ ] `db.sqlite3` git tarixidan olib tashlangan va tokenlar almashtirilgan
-- [ ] Frontend `pdp_token` ni ishlatmasligi tekshirilgan → `EXPOSE_PDP_TOKEN=0`
+- [ ] `db.sqlite3` git tarixidan olib tashlangan (bajarildi — `push --force` qoldi)
+- [ ] Admin parol almashtirilgan (git tarixida hashi bor edi)
+- [ ] `EXPOSE_PDP_TOKEN=0` (frontend tekshirildi — ishlatmaydi)
+- [ ] Compat URL loglari kuzatilmoqda → keyin `COMPAT_URLS_ENABLED=0`
 
 ---
 
@@ -251,3 +253,38 @@ haqiqiy bo'sh qiymat qaytadi (`monthlyPoints: 0`, `streak: 0`,
 hech qachon test topshirmagan o'quvchi ham oylik ball va seriya bilan
 ko'rinardi. Eski ko'rinishni `RANKING_ESTIMATE_MISSING=1` bilan
 qaytarish mumkin, lekin o'sha raqamlar haqiqiy emas.
+
+
+---
+
+## 11. Eski (compat) URL aliaslari
+
+`app/urls.py` da 53 ta orqaga moslik aliasi bor (`/api/courses/`,
+`/student/dashboard/`, `/auth/enter-password/` va h.k.).
+
+**Ular kerakmi?** 2026-09-05 da frontend (`pdp-junior-test.netlify.app`)
+ning 20 ta JS fayli tekshirildi: **birortasi ham alias chaqirmaydi** —
+hammasi kanonik URL'lardan foydalanadi. Shuning uchun ularni o'chirish
+xavfsiz ko'rinadi.
+
+Lekin eski keshdagi brauzer yoki boshqa mijoz bo'lishi mumkin, shuning
+uchun ular darhol o'chirilmadi. Buning o'rniga **kuzatuvga qo'yildi**:
+
+* har chaqiruvda logga `compat-url chaqirildi: METHOD /path (ua=...)`
+  yoziladi;
+* javobga `Deprecation: true` (va `COMPAT_URLS_SUNSET` berilsa `Sunset`)
+  sarlavhasi qo'shiladi.
+
+**Keyingi qadamlar:**
+
+1. Deploy qiling va 1-2 hafta loglarni kuzating:
+   `grep "compat-url chaqirildi" <log>`
+2. Loglar toza bo'lsa `COMPAT_URLS_ENABLED=0` qo'ying — aliaslar
+   `410 Gone` qaytaradi (kanonik URL'lar ta'sirlanmaydi).
+3. Yana bir hafta muammo bo'lmasa `app/urls.py` dagi
+   `urlpatterns += [...]` compat blokini butunlay o'chiring.
+
+Eslatma: compat view'lar asl view'ning **merosxo'ri**, ya'ni throttle va
+permission sozlamalari avtomatik ko'chadi — ularni ikki joyda
+takrorlash shart emas (auditdagi P-1 bu jihatdan haddan tashqari
+tashvishli edi).
