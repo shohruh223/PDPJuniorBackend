@@ -174,6 +174,21 @@ lekin ma'lumot baribir ko'rsatiladi.
 
 ## 7. Kuzatuv
 
+### Celery vazifalari loglari
+
+`LOGGING` da `celery.app.trace`, `celery.worker` va `celery.redirected`
+alohida ko'rsatilgan, `CELERY_WORKER_HIJACK_ROOT_LOGGER=False`. Ularsiz
+Django konfiguratsiyasi Celery'ning vazifa loglarini bo'g'ib qo'yadi va
+productionda vazifa xatolarini **ko'rmaysiz** (bu sinov paytida aniqlandi).
+
+Tekshirish:
+```bash
+grep "Task app.tasks" <worker-log>   # bajarilgan vazifalar
+grep "raised" <worker-log>           # yiqilganlari
+```
+
+### Boshqa
+
 ```bash
 curl https://<domen>/health        # liveness — bazaga tegmaydi
 curl https://<domen>/health/ready  # readiness — baza + kesh

@@ -11,9 +11,18 @@ class PDPStudentAPIError(Exception):
 
 
 class PDPStudentAPIClient:
-    BASE_URL = getattr(settings, "PDP_STUDENT_BASE_URL", "https://adminapi.pdp.uz/api")
+    DEFAULT_BASE_URL = "https://adminapi.pdp.uz/api"
 
-    def __init__(self, token=None):
+    def __init__(self, token=None, base_url=None):
+        # DIQQAT: ilgari BASE_URL klass atributi edi va IMPORT PAYTIDA
+        # hisoblanardi — shuning uchun uni na env bilan, na
+        # `override_settings` bilan o'zgartirib bo'lardi (staging yoki
+        # test stubiga yo'naltirishning iloji yo'q edi).
+        self.base_url = (
+            base_url
+            or getattr(settings, "PDP_STUDENT_BASE_URL", None)
+            or self.DEFAULT_BASE_URL
+        )
         self.timeout = getattr(settings, "PDP_API_TIMEOUT", 15)
         self.token = self._normalize_token(token)
 
@@ -35,7 +44,7 @@ class PDPStudentAPIClient:
         return headers
 
     def _get(self, endpoint: str, params=None) -> dict:
-        url = f"{self.BASE_URL.rstrip('/')}/{endpoint.lstrip('/')}"
+        url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
         try:
             response = requests.get(
                 url,

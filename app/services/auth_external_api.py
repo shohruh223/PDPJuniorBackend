@@ -14,13 +14,16 @@ class PDPAPIError(Exception):
 
 
 class PDPAuthAPIClient:
-    BASE_URL = getattr(
-        settings,
-        "PDP_AUTH_BASE_URL",
-        "https://adminapi.pdp.uz/api/auth/v1/junior-app"
-    )
+    DEFAULT_BASE_URL = "https://adminapi.pdp.uz/api/auth/v1/junior-app"
 
-    def __init__(self, token=None):
+    def __init__(self, token=None, base_url=None):
+        # Ilgari BASE_URL import paytida hisoblanadigan klass atributi edi
+        # va uni env orqali o'zgartirib bo'lmasdi.
+        self.base_url = (
+            base_url
+            or getattr(settings, "PDP_AUTH_BASE_URL", None)
+            or self.DEFAULT_BASE_URL
+        )
         self.timeout = getattr(settings, "PDP_API_TIMEOUT", 15)
         self.token = token
 
@@ -34,7 +37,7 @@ class PDPAuthAPIClient:
         return headers
 
     def _post(self, endpoint: str, data: dict) -> dict:
-        url = f"{self.BASE_URL}/{endpoint}"
+        url = f"{self.base_url.rstrip('/')}/{endpoint.lstrip('/')}"
 
         try:
             response = requests.post(

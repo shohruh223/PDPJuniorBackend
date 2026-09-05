@@ -141,6 +141,9 @@ async def student_journey(client, token, lessons_pool):
     )
     await call(client, "GET", "/api/ranking", "ranking", headers=headers)
     await call(client, "GET", "/api/student/ranking/me", "ranking/me", headers=headers)
+    # Ilgari bu ikkitasi har chaqiruvda tashqi PDP API'ni kutardi (15 s gacha)
+    await call(client, "GET", "/api/student/payment-histories", "payments", headers=headers)
+    await call(client, "GET", "/api/student/invoices", "invoices", headers=headers)
 
 
 async def run(args):

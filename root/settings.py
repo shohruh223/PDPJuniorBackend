@@ -232,6 +232,8 @@ CELERY_TASK_TIME_LIMIT = env_int("CELERY_TASK_TIME_LIMIT", 300)
 CELERY_TASK_SOFT_TIME_LIMIT = env_int("CELERY_TASK_SOFT_TIME_LIMIT", 240)
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_WORKER_MAX_TASKS_PER_CHILD = env_int("CELERY_WORKER_MAX_TASKS_PER_CHILD", 200)
+# Celery Django'ning LOGGING sozlamasini bosib olmasin.
+CELERY_WORKER_HIJACK_ROOT_LOGGER = False
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_BROKER_POOL_LIMIT = env_int("CELERY_BROKER_POOL_LIMIT", 10)
 CELERY_RESULT_EXPIRES = env_int("CELERY_RESULT_EXPIRES", 3600)
@@ -318,6 +320,9 @@ CACHE_TTL_PROGRESS = env_int("CACHE_TTL_PROGRESS", 900)    # modul qulfi
 
 # Tashqi PDP API bilan ishlash
 PDP_API_TIMEOUT = env_int("PDP_API_TIMEOUT", 8)
+# Tashqi servis manzillari — staging yoki test stubiga yo'naltirish uchun.
+PDP_AUTH_BASE_URL = os.getenv("PDP_AUTH_BASE_URL", "")
+PDP_STUDENT_BASE_URL = os.getenv("PDP_STUDENT_BASE_URL", "")
 PDP_SYNC_MIN_INTERVAL = env_int("PDP_SYNC_MIN_INTERVAL", 300)
 PDP_SYNC_ASYNC = env_bool("PDP_SYNC_ASYNC", True)
 
@@ -512,7 +517,14 @@ LOGGING = {
             "propagate": False,
         },
         "app": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        # DIQQAT: Celery worker'ining vazifa loglari (`Task ... succeeded`,
+        # `Task ... raised`) `celery.app.trace` logger'iga tushadi. Uni
+        # alohida ko'rsatmasak, Django LOGGING konfiguratsiyasi ularni
+        # bo'g'ib qo'yadi va productionda vazifa xatolarini KO'RMAYSIZ.
         "celery": {"handlers": ["console"], "level": LOG_LEVEL, "propagate": False},
+        "celery.app.trace": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "celery.worker": {"handlers": ["console"], "level": "INFO", "propagate": False},
+        "celery.redirected": {"handlers": ["console"], "level": "INFO", "propagate": False},
     },
 }
 
