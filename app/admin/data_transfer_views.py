@@ -22,10 +22,27 @@ from app.services.data_transfer import (
 ALLOWED_PRESETS = ("essential", "with-users", "full")
 
 
-def _require_staff(request):
-    if not request.user.is_authenticated or not request.user.is_staff:
-        return HttpResponseForbidden("Faqat staff foydalanuvchi.")
+def _require_superuser(request):
+    """Butun bazani o'qish/yozish — faqat superuser huquqi.
+
+    Ilgari bu yerda faqat `is_staff` tekshirilardi. Import esa yuklangan
+    JSON ichidagi "model" maydoni bo'yicha ISTALGAN modelga yozardi,
+    ya'ni hech qanday model ruxsatiga ega bo'lmagan staff foydalanuvchi
+    o'z qatorini `is_superuser: true` bilan qayta yozib, to'liq
+    superuser bo'la olardi.
+    """
+    if not request.user.is_authenticated or not request.user.is_superuser:
+        return HttpResponseForbidden("Faqat superuser foydalanuvchi.")
     return None
+
+
+# Eski nom bilan moslik uchun.
+_require_staff = _require_superuser
+
+
+def _allowed_import_labels():
+    """Import qilinishi mumkin bo'lgan modellar oq ro'yxati."""
+    return {label.lower() for label in resolve_labels(preset="full")}
 
 
 @require_http_methods(["GET"])
@@ -99,6 +116,17 @@ def admin_db_import(request):
     created = 0
     updated = 0
     errors = []
+
+    # XAVFSIZLIK: `serializers.deserialize` modelni JSON ichidagi "model"
+    # maydoni bo'yicha topadi, ya'ni fayl loyihadagi ISTALGAN modelga yoza
+    # oladi. Shuning uchun deserializatsiyadan OLDIN oq ro'yxat bilan
+    # tekshiramiz.
+    allowed = _allowed_import_labels()
+    for item in payload:
+        label = str((item or {}).get("model", "")).lower()
+        if label and label not in allowed:
+            messages.error(request, f"Ruxsat etilmagan model: {label}")
+            return redirect("admin:pdp_db_import")
 
     try:
         with transaction.atomic():

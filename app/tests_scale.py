@@ -619,3 +619,56 @@ class AnswerFlowTests(TestCase):
             len(ctx), 16,
             f"Javob yuborish {len(ctx)} ta so'rov bajardi — bu eng ko'p takrorlanadigan so'rov.",
         )
+
+
+class EmptyModuleDoesNotBlockCourseTests(TestCase):
+    """Regressiya: savoli yo'q modul butun kursni qulflab qo'yardi."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.course = Course.objects.create(name="Python")
+        branch = Branch.objects.create(
+            name="Chilonzor", address="a", phone="+998900000000",
+            map_url="https://maps.example/x",
+        )
+        cls.user, cls.profile = make_student(1, cls.course, branch)
+
+        # 1-modul: darsi bor, lekin savollari hali kiritilmagan
+        empty_module = Module.objects.create(course=cls.course, name="Kirish", order=1)
+        Lesson.objects.create(course=cls.course, module=empty_module, name="Tanishuv", order=1)
+
+        # 2-modul: to'liq
+        cls.real_module = Module.objects.create(course=cls.course, name="Asoslar", order=2)
+        lesson = Lesson.objects.create(
+            course=cls.course, module=cls.real_module, name="O'zgaruvchilar", order=1
+        )
+        Question.objects.create(
+            lesson=lesson,
+            text={"uz": "S", "ru": "S", "en": "S"},
+            options={"A": {"uz": "a", "ru": "a", "en": "a"},
+                     "B": {"uz": "b", "ru": "b", "en": "b"}},
+            correct_option="A",
+        )
+        cls.lesson = lesson
+
+    def setUp(self):
+        cache.clear()
+
+    def test_second_module_is_unlocked_despite_empty_first(self):
+        from app.services.student.test_progress_service import get_unlocked_module_ids
+
+        unlocked = get_unlocked_module_ids(self.user, self.course)
+        self.assertIn(
+            self.real_module.pk, unlocked,
+            "Savolsiz birinchi modul keyingi modullarni bloklamasligi kerak.",
+        )
+
+    def test_student_can_start_a_test_in_the_second_module(self):
+        client = APIClient()
+        client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.user).access_token}"
+        )
+        response = client.post(
+            "/api/student/tests/start/", {"lesson_id": self.lesson.id}, format="json"
+        )
+        self.assertEqual(response.status_code, 201, response.content[:300])

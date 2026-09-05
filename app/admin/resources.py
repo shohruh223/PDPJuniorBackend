@@ -150,6 +150,9 @@ class UserResource(SafeDynamicModelResource):
 
 class StudentProfileResource(SafeDynamicModelResource):
     class Meta:
+        # XAVFSIZLIK: bu tashqi PDP API uchun amaldagi credential —
+        # eksport faylida chiqmasligi kerak.
+        exclude = ("pdp_access_token",)
         model = StudentProfile
         import_id_fields = ("id",)
         skip_unchanged = True

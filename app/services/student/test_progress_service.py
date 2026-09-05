@@ -39,7 +39,15 @@ def is_module_completed(user, module, *, completed_lesson_ids=None):
     )
 
     if not testable_lesson_ids:
-        return False
+        # DIQQAT: ilgari bu yerda `False` qaytarilardi va chaqiruvchi sikl
+        # birinchi "tugallanmagan" modulda to'xtardi. Ya'ni admin savol
+        # qo'shishga ulgurmagan bitta bo'sh modul BUTUN KURSNI barcha
+        # o'quvchilar uchun doimiy qulflab qo'yardi.
+        #
+        # Testga yaroqli darsi yo'q modulda o'quvchi qiladigan ish yo'q,
+        # shuning uchun uni "o'tilgan" deb hisoblaymiz va keyingi modul
+        # ochiladi.
+        return True
 
     if completed_lesson_ids is None:
         course = module.course

@@ -61,7 +61,7 @@ class UserAdminForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance and self.instance.pk:
+        if self.instance and not self.instance._state.adding:
             self.fields["password"].help_text = (
                 "Bo‘sh qoldirilsa, eski parol o‘zgarmaydi."
             )
@@ -89,9 +89,18 @@ class UserAdminForm(forms.ModelForm):
 
         if password:
             obj.set_password(password)
-        elif obj.pk:
-            old_obj = User.objects.get(pk=obj.pk)
-            obj.password = old_obj.password
+        elif not self.instance._state.adding:
+            # DIQQAT: bu yerda ilgari `elif obj.pk:` yozilgan edi. User
+            # `BaseModel` dan UUID primary key oladi va Django default'ni
+            # `__init__` da qo'llaydi — ya'ni saqlanmagan YANGI obyektning
+            # ham `pk` si bor. Natijada admin panelda parolsiz foydalanuvchi
+            # yaratishga urinish `User.DoesNotExist` -> 500 berardi, va
+            # `set_unusable_password()` tarmog'i hech qachon bajarilmasdi.
+            old_obj = User.objects.filter(pk=obj.pk).first()
+            if old_obj:
+                obj.password = old_obj.password
+            else:
+                obj.set_unusable_password()
         else:
             obj.set_unusable_password()
 
