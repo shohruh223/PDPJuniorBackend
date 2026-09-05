@@ -133,147 +133,69 @@ class SafeDynamicModelResource(DynamicModelResource):
         use_bulk = False
 
 
-class UserResource(SafeDynamicModelResource):
-    class Meta:
-        model = User
-        import_id_fields = ("id",)
-        exclude = (
-            "password",
-            "groups",
-            "user_permissions",
-            "last_login",
-        )
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
+# ---------------------------------------------------------------------
+# Resource'lar fabrikasi
+#
+# Ilgari bu yerda 20 dan ortiq bir xil klass bor edi — ular faqat `model`
+# maydoni bilan farq qilardi va bazaviy klass allaqachon bergan
+# sozlamalarni (`import_id_fields`, `skip_unchanged`, ...) qayta e'lon
+# qilardi. Aynan shu bir xillik tufayli `StudentProfileResource` da
+# `exclude` yo'qligi ko'zga tashlanmagan va `pdp_access_token` eksport
+# faylida chiqib ketardi.
+# ---------------------------------------------------------------------
 
 
-class StudentProfileResource(SafeDynamicModelResource):
-    class Meta:
-        # XAVFSIZLIK: bu tashqi PDP API uchun amaldagi credential —
-        # eksport faylida chiqmasligi kerak.
-        exclude = ("pdp_access_token",)
-        model = StudentProfile
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
+def resource_for(model, *, exclude=None, name=None):
+    """Berilgan model uchun standart import/export resource klassi."""
+    meta_attrs = {
+        "model": model,
+        "import_id_fields": ("id",),
+        "skip_unchanged": True,
+        "report_skipped": True,
+        "use_bulk": False,
+    }
+    if exclude:
+        meta_attrs["exclude"] = tuple(exclude)
+
+    return type(
+        name or f"{model.__name__}Resource",
+        (SafeDynamicModelResource,),
+        {"Meta": type("Meta", (), meta_attrs)},
+    )
 
 
-class BranchResource(SafeDynamicModelResource):
-    class Meta:
-        model = Branch
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
+UserResource = resource_for(User, exclude=("password", "groups", "user_permissions", "last_login",), name="UserResource")
+StudentProfileResource = resource_for(StudentProfile, exclude=("pdp_access_token",), name="StudentProfileResource")
+BranchResource = resource_for(Branch, name="BranchResource")
+CoinProductResource = resource_for(CoinProduct, name="CoinProductResource")
+MentorResource = resource_for(Mentor, name="MentorResource")
+MonthHeroResource = resource_for(MonthHero, name="MonthHeroResource")
+StudentPaymentHistoryResource = resource_for(StudentPaymentHistory, name="StudentPaymentHistoryResource")
+StudentInvoiceResource = resource_for(StudentInvoice, name="StudentInvoiceResource")
+PortfolioResource = resource_for(Portfolio, name="PortfolioResource")
+CourseResource = resource_for(Course, name="CourseResource")
+ModuleResource = resource_for(Module, name="ModuleResource")
+LessonResource = resource_for(Lesson, name="LessonResource")
+TestSessionResource = resource_for(TestSession, name="TestSessionResource")
+TestSessionQuestionResource = resource_for(TestSessionQuestion, name="TestSessionQuestionResource")
+TestSessionAnswerResource = resource_for(TestSessionAnswer, name="TestSessionAnswerResource")
+StudentQuestionRewardResource = resource_for(StudentQuestionReward, name="StudentQuestionRewardResource")
+GalleryPostResource = resource_for(GalleryPost, name="GalleryPostResource")
+StudentMarkResource = resource_for(StudentMark, name="StudentMarkResource")
+CoinOrderResource = resource_for(CoinOrder, name="CoinOrderResource")
 
 
-class CoinProductResource(SafeDynamicModelResource):
-    class Meta:
-        model = CoinProduct
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class MentorResource(SafeDynamicModelResource):
-    class Meta:
-        model = Mentor
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class MonthHeroResource(SafeDynamicModelResource):
-    class Meta:
-        model = MonthHero
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class StudentPaymentHistoryResource(SafeDynamicModelResource):
-    class Meta:
-        model = StudentPaymentHistory
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class StudentInvoiceResource(SafeDynamicModelResource):
-    class Meta:
-        model = StudentInvoice
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class PortfolioResource(SafeDynamicModelResource):
-    class Meta:
-        model = Portfolio
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class CourseResource(SafeDynamicModelResource):
-    class Meta:
-        model = Course
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class ModuleResource(SafeDynamicModelResource):
-    class Meta:
-        model = Module
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class LessonResource(SafeDynamicModelResource):
-    class Meta:
-        model = Lesson
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
+# QuestionResource fabrikaga to'g'ri kelmaydi: unda i18n JSON maydonlari
+# va FK widget'lari uchun aniq ta'riflar kerak.
 class QuestionResource(SafeDynamicModelResource):
     lesson = Field(
         column_name="lesson",
         attribute="lesson",
         widget=ForeignKeyWidget(Lesson, "id"),
     )
-
-    text = Field(
-        column_name="text",
-        attribute="text",
-        widget=JSONWidget(),
-    )
-
-    images = Field(
-        column_name="images",
-        attribute="images",
-        widget=JSONWidget(),
-    )
-
-    options = Field(
-        column_name="options",
-        attribute="options",
-        widget=JSONWidget(),
-    )
+    text = Field(column_name="text", attribute="text", widget=JSONWidget())
+    images = Field(column_name="images", attribute="images", widget=JSONWidget())
+    options = Field(column_name="options", attribute="options", widget=JSONWidget())
 
     class Meta:
         model = Question
@@ -286,78 +208,7 @@ class QuestionResource(SafeDynamicModelResource):
             "correct_option",
             "created_at",
         )
-        export_order = (
-            "id",
-            "lesson",
-            "text",
-            "images",
-            "options",
-            "correct_option",
-            "created_at",
-        )
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class TestSessionResource(SafeDynamicModelResource):
-    class Meta:
-        model = TestSession
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class TestSessionQuestionResource(SafeDynamicModelResource):
-    class Meta:
-        model = TestSessionQuestion
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class TestSessionAnswerResource(SafeDynamicModelResource):
-    class Meta:
-        model = TestSessionAnswer
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class StudentQuestionRewardResource(SafeDynamicModelResource):
-    class Meta:
-        model = StudentQuestionReward
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class GalleryPostResource(SafeDynamicModelResource):
-    class Meta:
-        model = GalleryPost
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class StudentMarkResource(SafeDynamicModelResource):
-    class Meta:
-        model = StudentMark
-        import_id_fields = ("id",)
-        skip_unchanged = True
-        report_skipped = True
-        use_bulk = False
-
-
-class CoinOrderResource(SafeDynamicModelResource):
-    class Meta:
-        model = CoinOrder
+        export_order = fields
         import_id_fields = ("id",)
         skip_unchanged = True
         report_skipped = True

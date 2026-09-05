@@ -3,6 +3,7 @@ from django.conf import settings
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from app.models.auth import User, StudentProfile
+from app.utils.text import split_full_name
 from .auth_external_api import PDPAuthAPIClient
 from .student.external_student_api import PDPStudentAPIClient, PDPStudentAPIError
 from .student.student_dashboard_service import sync_student_dashboard_data
@@ -13,23 +14,10 @@ from .student.student_dashboard_service import sync_student_dashboard_data
 # istisnoni ushlay olmasdi va muddati tugagan token 400 o'rniga 500
 # berardi. Endi yagona manba — `password_reset_token`.
 from .password_reset_token import (  # noqa: E402
-    PRE_RESET_TOKEN_MAX_AGE,
-    PRE_RESET_TOKEN_SALT,
     PreResetTokenError,
     make_pre_reset_token,
     parse_pre_reset_token,
 )
-
-
-def split_full_name(full_name: str) -> tuple[str, str]:
-    full_name = (full_name or "").strip()
-    if not full_name:
-        return "", ""
-
-    parts = full_name.split()
-    first_name = parts[0]
-    last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-    return first_name, last_name
 
 
 def check_phone_via_external_api(phone_number: str) -> dict:
@@ -103,7 +91,9 @@ def set_new_password_with_pre_token(
     password: str,
     repeat_password: str,
 ) -> dict:
-    token_data = parse_pre_reset_token(pre_reset_token)
+    # Bir martalik: yozuv shu yerda o'chiriladi, ya'ni o'g'irlangan
+    # token qayta ishlatilmaydi.
+    token_data = parse_pre_reset_token(pre_reset_token, consume=True)
 
     return set_new_password_via_external_api(
         phone_number=token_data["phone_number"],

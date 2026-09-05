@@ -15,6 +15,29 @@ from app.models.month_hero import MonthHero
 from app.models.question import Course
 
 
+def _requested_year(request, hero_id=None) -> int:
+    """AJAX so'rovidagi yil: aniq berilgan, yoki tahrirlanayotgan yozuvniki."""
+    raw = request.GET.get("year")
+    if raw:
+        try:
+            value = int(raw)
+            if 2000 <= value <= 2100:
+                return value
+        except (TypeError, ValueError):
+            pass
+
+    if hero_id:
+        period = (
+            MonthHero.objects.filter(pk=hero_id)
+            .values_list("period", flat=True)
+            .first()
+        )
+        if period:
+            return period.year
+
+    return timezone.localdate().year
+
+
 class MonthHeroAdminForm(forms.ModelForm):
     MONTH_NAMES = (
         "Yanvar",
@@ -361,7 +384,14 @@ class MonthHeroAdmin(PrettyImportExportModelAdmin):
     def get_hero_months(self, request):
         student_id = request.GET.get("student_id")
         hero_id = request.GET.get("hero_id")
-        year = timezone.localdate().year
+
+        # DIQQAT: ilgari bu yerda yil har doim JORIY yil edi, forma esa
+        # variantlarni tahrirlanayotgan yozuvning yilidan qurardi. 2026-yilda
+        # 2025-03-01 davriga ega heroni tahrirlaganda JS ro'yxatni yangilashi
+        # bilan variantlar 2026 sanalariga aylanardi va saqlash yozuvni
+        # jimgina bir yil oldinga surib yuborardi (dublikat tekshiruvi ham
+        # yangi davrni ko'rgani uchun buni ushlamasdi).
+        year = _requested_year(request, hero_id)
         used_months = set()
 
         if student_id:

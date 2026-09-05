@@ -242,4 +242,12 @@ Yangi qo'shilganlar (ixtiyoriy):
 * `?page=2&limit=50` → javobga `meta` bloki qo'shiladi.
 * `?refresh=1` → dashboard/to'lov endpointlarida majburiy sinxronizatsiya.
 * `GET /health`, `GET /health/ready`.
+* `POST /auth/logout` — `{"refresh_token": "..."}`.
 * Dashboard javobida `coins.spent_coin` maydoni.
+
+**Bitta ko'rinadigan o'zgarish.** Reytingda ma'lumot yo'q bo'lsa endi
+haqiqiy bo'sh qiymat qaytadi (`monthlyPoints: 0`, `streak: 0`,
+`course: ""`, `level: ""`). Ilgari ular "taxmin qilib" to'ldirilardi:
+hech qachon test topshirmagan o'quvchi ham oylik ball va seriya bilan
+ko'rinardi. Eski ko'rinishni `RANKING_ESTIMATE_MISSING=1` bilan
+qaytarish mumkin, lekin o'sha raqamlar haqiqiy emas.

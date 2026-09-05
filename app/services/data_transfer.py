@@ -211,7 +211,14 @@ def discover_import_files(path: Path) -> list[Path]:
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         files = []
         for item in manifest.get("files", []):
-            file_path = path / item["file"]
+            # XAVFSIZLIK: `item["file"]` ishonchsiz manbadan kelishi mumkin.
+            # Nisbiy `../` ham, absolyut yo'l ham bazaviy papkadan chiqib
+            # ketadi (Path("/a") / "/etc/passwd" == Path("/etc/passwd")).
+            file_path = (path / item["file"]).resolve()
+            if not file_path.is_relative_to(path.resolve()):
+                raise ValueError(
+                    f"Manifestdagi yo'l papkadan tashqariga chiqmoqda: {item['file']}"
+                )
             if file_path.exists():
                 files.append(file_path)
         if files:

@@ -19,12 +19,27 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
+            "--yes",
+            action="store_true",
+            help="Tasdiqlash: bu buyruq JONLI bazaga yozadi!",
+        )
+        parser.add_argument(
             "--preset",
             default="catalog",
             help="Test uchun preset (default: catalog)",
         )
 
     def handle(self, *args, **options):
+        # DIQQAT: nomida "test" bo'lsa-da, bu management buyrug'i —
+        # u alohida test bazasida emas, DATABASES["default"] ustida
+        # ishlaydi va export bilan import orasida qilingan o'zgarishlarni
+        # jimgina orqaga qaytarishi mumkin.
+        from django.conf import settings as dj_settings
+
+        if not dj_settings.DEBUG and not options.get("yes"):
+            raise CommandError(
+                "Bu buyruq JONLI bazaga yozadi. Davom etish uchun --yes bering."
+            )
         preset = options["preset"]
         export_dir = Path(settings.BASE_DIR) / "data" / "exports" / "roundtrip_test"
         combined = export_dir / "combined.json"

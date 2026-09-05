@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+from django.conf import settings
 from django.db.models import Count, Prefetch, Q
 
 from app.models.auth import StudentProfile
 from app.models.mentors import Mentor
 from app.models.question import Course, Lesson, Module
 from app.services.profile_image_service import build_profile_image_url
+from app.utils.text import estimated_test_minutes
 
 
 UZ_MONTHS_SHORT = [
@@ -78,8 +80,20 @@ def resolve_mentor_name(branch_id, course_name: str | None) -> str:
 
 
 def estimate_streak(profile: StudentProfile) -> int:
+    """O'quvchining ketma-ket kunlar seriyasi.
+
+    DIQQAT: ilgari `streak_days` bo'sh bo'lsa davomat foizidan 1-30
+    kunlik seriya "taxmin qilinardi" va bu foydalanuvchiga haqiqiy
+    ko'rsatkich sifatida ko'rsatilardi. Ota-ona yoki mentor bu raqamga
+    ishonsa, noto'g'ri xulosaga kelardi.
+
+    Endi ma'lumot yo'q bo'lsa 0 qaytadi. Eski xatti-harakatni
+    `RANKING_ESTIMATE_MISSING=1` bilan qaytarish mumkin.
+    """
     if profile.streak_days:
         return profile.streak_days
+    if not getattr(settings, "RANKING_ESTIMATE_MISSING", False):
+        return 0
     percent = profile.attendance_average_percent or 0
     if percent <= 0:
         return 0
@@ -93,12 +107,20 @@ def serialize_ranking_student(
     mentor_index: dict | None = None,
 ) -> dict:
     user = profile.user
-    course_name = profile.course.name if profile.course else "Python"
-    branch_name = profile.branch.name if profile.branch else "PDP Junior"
+    # Ilgari bu yerda kursi noma'lum o'quvchiga "Python", filiali
+    # noma'lumga "PDP Junior" yozib qo'yilardi — ya'ni bo'sh ma'lumot
+    # haqiqiy ma'lumotdan farq qilmasdi.
+    course_name = profile.course.name if profile.course else ""
+    branch_name = profile.branch.name if profile.branch else ""
     avatar = build_absolute_photo_url(user, request)
 
     total_points = profile.total_score or 0
-    monthly_points = profile.local_test_score or max(0, int(total_points * 0.18))
+    # Ilgari oylik ball bo'sh bo'lsa umumiy balning 18 %i "o'ylab
+    # topilardi" — hech qachon test topshirmagan o'quvchi ham oylik ball
+    # bilan ko'rinardi.
+    monthly_points = profile.local_test_score or 0
+    if not monthly_points and getattr(settings, "RANKING_ESTIMATE_MISSING", False):
+        monthly_points = max(0, int(total_points * 0.18))
 
     if mentor_index is None:
         mentor_index = load_mentor_index()
@@ -114,7 +136,7 @@ def serialize_ranking_student(
         "totalPoints": total_points,
         "monthlyPoints": monthly_points,
         "streak": estimate_streak(profile),
-        "level": profile.group_name or "P-9",
+        "level": profile.group_name or "",
         "score": monthly_points if period == "month" else total_points,
     }
 
@@ -219,7 +241,7 @@ def serialize_lesson_item(lesson: Lesson) -> dict:
         "order": lesson.order,
         "module_id": lesson.module_id,
         "questions_count": questions_count,
-        "estimated_duration_minutes": max(1, questions_count + 1),
+        "estimated_duration_minutes": estimated_test_minutes(questions_count),
     }
 
 

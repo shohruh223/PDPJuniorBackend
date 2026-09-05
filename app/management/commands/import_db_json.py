@@ -92,14 +92,19 @@ class Command(BaseCommand):
                     ignorenonexistent=options["ignorenonexistent"],
                 ):
                     try:
-                        model = obj.object.__class__
-                        pk = obj.object.pk
-                        exists = (
-                            model.objects.filter(pk=pk).exists()
-                            if pk is not None
-                            else False
-                        )
-                        obj.save()
+                        # Har bir obyekt o'z savepoint'ida — aks holda
+                        # PostgreSQL'da bitta xato tranzaksiyani "aborted"
+                        # holatiga tushirib, keyingi barcha so'rovlarni
+                        # TransactionManagementError bilan yiqitadi.
+                        with transaction.atomic():
+                            model = obj.object.__class__
+                            pk = obj.object.pk
+                            exists = (
+                                model.objects.filter(pk=pk).exists()
+                                if pk is not None
+                                else False
+                            )
+                            obj.save()
                         if exists:
                             updated += 1
                         else:

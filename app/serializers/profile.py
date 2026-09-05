@@ -1,9 +1,13 @@
+import logging
+
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from app.services import enter_password_via_external_api
 from app.services.auth_external_api import PDPAPIError
 from app.services.profile_image_service import build_profile_image_url
+
+logger = logging.getLogger(__name__)
 
 
 class StudentProfileSerializer(serializers.Serializer):
@@ -101,37 +105,41 @@ class StudentPasswordChangeSerializer(serializers.Serializer):
         return user.has_usable_password()
 
     def _check_external_password(self, user, password):
-        phone_number = user.phone_number
+        """Eski parolni tashqi PDP servisi orqali tekshiradi.
 
-        phone_variants = []
+        Ilgari bu yerda telefon raqamining 3 xil ko'rinishi bilan 3 marta
+        so'rov yuborilardi. Bu (a) tashqi servisga parol tekshirishni 3
+        barobar kuchaytirardi, (b) tarmoq xatosini noto'g'ri paroldan
+        ajratmasdi — PDP bir zumga ishlamay qolsa hamma foydalanuvchi
+        "Eski parol noto'g'ri" xabarini olardi.
 
-        if phone_number:
-            phone_variants.append(phone_number)
+        Endi raqam bir marta normallashtiriladi va tarmoq muammosi
+        alohida istisno bilan yuqoriga uzatiladi.
+        """
+        phone_number = (user.phone_number or "").strip()
+        if not phone_number:
+            return False
 
-            if phone_number.startswith("+"):
-                phone_variants.append(phone_number[1:])
+        # `+998XXXXXXXXX` — bazadagi yagona format (model validatori shuni
+        # majburlaydi), shuning uchun variantlar kerak emas.
+        if phone_number.startswith("998"):
+            phone_number = f"+{phone_number}"
 
-            if phone_number.startswith("998"):
-                phone_variants.append(f"+{phone_number}")
-
-        checked_phones = []
-
-        for phone in phone_variants:
-            if not phone or phone in checked_phones:
-                continue
-
-            checked_phones.append(phone)
-
-            try:
-                enter_password_via_external_api(
-                    phone_number=phone,
-                    password=password,
+        try:
+            enter_password_via_external_api(
+                phone_number=phone_number,
+                password=password,
+            )
+            return True
+        except PDPAPIError as exc:
+            status_code = getattr(exc, "status_code", 400)
+            if status_code and int(status_code) >= 500:
+                # Tashqi servis nosozligi — buni "parol noto'g'ri" deb
+                # ko'rsatish foydalanuvchini chalg'itadi.
+                raise serializers.ValidationError(
+                    "Parolni hozir tekshirib bo'lmadi. Birozdan keyin qayta urinib ko'ring."
                 )
-                return True
-            except PDPAPIError:
-                continue
-
-        return False
+            return False
 
     def validate_old_password(self, value):
         user = self.context["request"].user
@@ -178,4 +186,26 @@ class StudentPasswordChangeSerializer(serializers.Serializer):
         user = self.context["request"].user
         user.set_password(self.validated_data["new_password"])
         user.save(update_fields=["password"])
+
+        # Parol o'zgardi — eski sessiyalar ham tugatilishi kerak. Ilgari
+        # bu qilinmasdi: parolini o'zgartirgan o'quvchi hujumchini
+        # tizimdan chiqara olmasdi, chunki o'g'irlangan refresh token
+        # ishlashda davom etardi.
+        self._revoke_outstanding_tokens(user)
         return user
+
+    @staticmethod
+    def _revoke_outstanding_tokens(user):
+        try:
+            from rest_framework_simplejwt.token_blacklist.models import (
+                BlacklistedToken,
+                OutstandingToken,
+            )
+        except Exception:  # blacklist ilovasi ulanmagan
+            return
+
+        try:
+            for token in OutstandingToken.objects.filter(user=user):
+                BlacklistedToken.objects.get_or_create(token=token)
+        except Exception:
+            logger.exception("Parol o'zgarganda tokenlarni bekor qilib bo'lmadi")

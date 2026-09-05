@@ -132,14 +132,21 @@ def admin_db_import(request):
         with transaction.atomic():
             for obj in serializers.deserialize("json", raw):
                 try:
-                    model = obj.object.__class__
-                    pk = obj.object.pk
-                    exists = (
-                        model.objects.filter(pk=pk).exists()
-                        if pk is not None
-                        else False
-                    )
-                    obj.save()
+                    # DIQQAT: PostgreSQL'da `atomic()` ichida baza xatosini
+                    # ushlab, savepoint'siz davom etish tranzaksiyani
+                    # "aborted" holatiga tushiradi — keyingi HAR BIR so'rov
+                    # TransactionManagementError beradi va haqiqiy sabab
+                    # xatolar ro'yxatidan siqib chiqariladi. Har bir
+                    # obyektni o'z savepoint'iga o'raymiz.
+                    with transaction.atomic():
+                        model = obj.object.__class__
+                        pk = obj.object.pk
+                        exists = (
+                            model.objects.filter(pk=pk).exists()
+                            if pk is not None
+                            else False
+                        )
+                        obj.save()
                     if exists:
                         updated += 1
                     else:

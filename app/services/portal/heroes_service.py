@@ -38,7 +38,7 @@ def serialize_hero(
     mentor_index: dict | None = None,
 ) -> dict:
     user = profile.user
-    course_name = profile.course.name if profile.course else "Python"
+    course_name = profile.course.name if profile.course else ""
     branch_name = profile.branch.name if profile.branch else ""
     image = build_absolute_photo_url(user, request) or ""
     if mentor_index is None:

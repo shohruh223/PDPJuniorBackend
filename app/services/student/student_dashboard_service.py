@@ -4,18 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from app.models.auth import StudentProfile
-
-
-def split_full_name(full_name: str):
-    full_name = (full_name or "").strip()
-    if not full_name:
-        return "", ""
-
-    parts = full_name.split()
-    if len(parts) == 1:
-        return parts[0], ""
-
-    return parts[0], " ".join(parts[1:])
+from app.utils.text import split_full_name
 
 
 def extract_student_dashboard_data(payload: dict) -> dict:

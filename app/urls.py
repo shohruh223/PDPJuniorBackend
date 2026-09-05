@@ -59,6 +59,7 @@ from app.views.modules_lessons import (
 )
 from app.views.catalog import CourseCatalogAPIView
 from app.views.health import HealthAPIView, ReadinessAPIView
+from app.views.logout import LogoutAPIView
 from app.views.marks import StudentMarksAPIView
 urlpatterns = [
     # ── Health check (platforma va monitoring uchun) ───────────────────────
@@ -78,6 +79,7 @@ urlpatterns = [
     ),
     path("auth/reset-password", FrontendResetPasswordAPIView.as_view(), name="frontend-reset-password"),
     path("auth/sms/resend", FrontendResendSmsAPIView.as_view(), name="frontend-resend-sms"),
+    path("auth/logout", LogoutAPIView.as_view(), name="frontend-logout"),
 
     # ── Student API (/api/student/...) — frontend kontrakt ───────────────────
     path("api/student/dashboard", StudentDashboardAPIView.as_view(), name="api-student-dashboard"),
@@ -190,6 +192,7 @@ urlpatterns += [
     ),
     path("auth/reset-password/", _hidden_view(FrontendResetPasswordAPIView), name="compat-frontend-reset-password-slash"),
     path("auth/sms/resend/", _hidden_view(FrontendResendSmsAPIView), name="compat-frontend-resend-sms-slash"),
+    path("auth/logout/", _hidden_view(LogoutAPIView), name="compat-frontend-logout-slash"),
     path("api/student/dashboard/", _hidden_view(StudentDashboardAPIView), name="compat-api-student-dashboard-slash"),
     path("api/student/profile/", _hidden_view(StudentProfileAPIView), name="compat-api-student-profile-slash"),
     path("api/student/marks/", _hidden_view(StudentMarksAPIView), name="compat-api-student-marks-slash"),

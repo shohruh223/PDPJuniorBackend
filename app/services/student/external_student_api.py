@@ -1,5 +1,9 @@
+import logging
+
 import requests
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class PDPStudentAPIError(Exception):
@@ -43,11 +47,17 @@ class PDPStudentAPIClient:
         except requests.exceptions.Timeout:
             raise PDPStudentAPIError("External student API timeout bo‘ldi.")
         except requests.exceptions.HTTPError:
+            # XAVFSIZLIK: tashqi servisning javob tanasi (stack trace,
+            # ichki yo'llar, framework versiyalari) foydalanuvchiga
+            # ko'rsatilmaydi — u faqat logga yoziladi.
             try:
-                error_data = response.json()
+                detail = response.json()
             except Exception:
-                error_data = response.text
-            raise PDPStudentAPIError(f"HTTP {response.status_code}: {error_data}")
+                detail = response.text[:500]
+            logger.warning("PDP student API HTTP %s: %s", response.status_code, detail)
+            raise PDPStudentAPIError(
+                f"Tashqi servis xatosi (HTTP {response.status_code})."
+            )
         except requests.exceptions.RequestException as e:
             raise PDPStudentAPIError(str(e))
 

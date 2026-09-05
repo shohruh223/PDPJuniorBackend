@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from app.utils.text import estimated_test_minutes
 from app.models.question import Course, Lesson, Question, validate_i18n_json, Module
 
 
@@ -199,5 +200,4 @@ class StudentCourseLessonsSerializer(serializers.ModelSerializer):
         ]
 
     def get_estimated_duration_minutes(self, obj):
-        count = getattr(obj, "questions_count", 0) or 0
-        return count + 1 if count > 0 else 1
+        return estimated_test_minutes(getattr(obj, "questions_count", 0))

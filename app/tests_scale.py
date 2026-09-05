@@ -672,3 +672,144 @@ class EmptyModuleDoesNotBlockCourseTests(TestCase):
             "/api/student/tests/start/", {"lesson_id": self.lesson.id}, format="json"
         )
         self.assertEqual(response.status_code, 201, response.content[:300])
+
+
+class PreResetTokenSecurityTests(TestCase):
+    """Regressiya: SMS kod token ichida ochiq matnda yurardi."""
+
+    def setUp(self):
+        cache.clear()
+
+    def test_token_does_not_contain_the_sms_code(self):
+        import base64
+
+        from app.services.password_reset_token import make_pre_reset_token
+
+        token = make_pre_reset_token(
+            phone_number="+998901234567",
+            sms_code_id="abc-123",
+            sms_code="987654",
+        )
+        self.assertNotIn("987654", token)
+        self.assertNotIn("998901234567", token)
+
+        # base64 sifatida ochib ko'rsak ham chiqmasligi kerak
+        padded = token + "=" * (-len(token) % 4)
+        try:
+            decoded = base64.urlsafe_b64decode(padded).decode("utf-8", "ignore")
+        except Exception:
+            decoded = ""
+        self.assertNotIn("987654", decoded)
+
+    def test_token_is_single_use(self):
+        from app.services.password_reset_token import (
+            PreResetTokenError,
+            make_pre_reset_token,
+            parse_pre_reset_token,
+        )
+
+        token = make_pre_reset_token(
+            phone_number="+998901234567", sms_code_id="a", sms_code="1"
+        )
+        data = parse_pre_reset_token(token, consume=True)
+        self.assertEqual(data["sms_code"], "1")
+
+        with self.assertRaises(PreResetTokenError):
+            parse_pre_reset_token(token)
+
+    def test_forged_token_is_rejected(self):
+        from app.services.password_reset_token import PreResetTokenError, parse_pre_reset_token
+
+        with self.assertRaises(PreResetTokenError):
+            parse_pre_reset_token("men-oylab-topgan-token")
+
+
+class LogoutTests(TestCase):
+    """Ilgari logout umuman yo'q edi."""
+
+    @classmethod
+    def setUpTestData(cls):
+        course = Course.objects.create(name="Python")
+        branch = Branch.objects.create(
+            name="Chilonzor", address="a", phone="+998900000000",
+            map_url="https://maps.example/x",
+        )
+        cls.user, _ = make_student(1, course, branch)
+
+    def test_refresh_token_is_blacklisted(self):
+        from rest_framework_simplejwt.exceptions import TokenError
+
+        refresh = RefreshToken.for_user(self.user)
+        client = APIClient()
+        client.credentials(HTTP_AUTHORIZATION=f"Bearer {refresh.access_token}")
+
+        response = client.post("/auth/logout", {"refresh_token": str(refresh)}, format="json")
+        self.assertEqual(response.status_code, 200)
+
+        # Bekor qilingan refresh token endi yangi access bera olmaydi
+        with self.assertRaises(TokenError):
+            RefreshToken(str(refresh))
+
+    def test_logout_requires_refresh_token(self):
+        client = APIClient()
+        client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.user).access_token}"
+        )
+        self.assertEqual(client.post("/auth/logout", {}, format="json").status_code, 400)
+
+
+class DurationConsistencyTests(TestCase):
+    """Regressiya: dars davomiyligi uch joyda uch xil hisoblanardi."""
+
+    def test_single_formula_everywhere(self):
+        from app.serializers.question import StudentCourseLessonsSerializer
+        from app.serializers.student_lesson_tree_serializer import StudentLessonItemSerializer
+        from app.serializers.test import StudentLessonItemSerializer as TestLessonSerializer
+        from app.services.portal.ranking_service import serialize_lesson_item
+        from app.utils.text import estimated_test_minutes
+
+        course = Course.objects.create(name="Python")
+        module = Module.objects.create(course=course, name="M", order=1)
+        lesson = Lesson.objects.create(course=course, module=module, name="D", order=1)
+        lesson.questions_count = 10
+
+        expected = estimated_test_minutes(10)
+        self.assertEqual(expected, 11)
+
+        values = {
+            "tree": StudentLessonItemSerializer(lesson).data["estimated_duration_minutes"],
+            "test": TestLessonSerializer(lesson).data["estimated_duration_minutes"],
+            "question": StudentCourseLessonsSerializer(lesson).data["estimated_duration_minutes"],
+            "ranking": serialize_lesson_item(lesson)["estimated_duration_minutes"],
+        }
+        self.assertEqual(
+            set(values.values()), {expected},
+            f"Formulalar hamon farq qilmoqda: {values}",
+        )
+
+
+class ExternalErrorLeakTests(TestCase):
+    """Tashqi servis xato matni foydalanuvchiga uzatilmasligi kerak."""
+
+    def test_upstream_body_is_not_exposed(self):
+        from unittest.mock import MagicMock, patch
+
+        from app.services.student.external_student_api import (
+            PDPStudentAPIClient,
+            PDPStudentAPIError,
+        )
+        import requests
+
+        secret_trace = "java.lang.NullPointerException at com.pdp.internal.Secret"
+        response = MagicMock()
+        response.status_code = 500
+        response.json.side_effect = ValueError
+        response.text = secret_trace
+        response.raise_for_status.side_effect = requests.exceptions.HTTPError()
+
+        with patch("requests.get", return_value=response):
+            with self.assertRaises(PDPStudentAPIError) as ctx:
+                PDPStudentAPIClient(token="x").get_student_info("1")
+
+        self.assertNotIn("NullPointer", str(ctx.exception))
+        self.assertNotIn("com.pdp.internal", str(ctx.exception))

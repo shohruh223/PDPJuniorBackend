@@ -1,0 +1,20 @@
+# Qator oxiri belgilarini bir xillashtiradi.
+#
+# Buningsiz Windows'da ishlangan fayllar CRLF bilan saqlanib, git ularni
+# "o'zgargan" deb ko'rsatardi — 5 ta migratsiya fayli aynan shu sababdan
+# doim diffda turardi va haqiqiy o'zgarish shovqin ichida ko'rinmasdi.
+#
+# Qo'llash: git add --renormalize .
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.zip binary
+*.sqlite3 binary
+*.woff binary
+*.woff2 binary

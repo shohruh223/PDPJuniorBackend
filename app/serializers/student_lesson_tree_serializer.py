@@ -1,5 +1,7 @@
 from rest_framework import serializers
+
 from app.models.question import Module, Lesson
+from app.utils.text import estimated_test_minutes
 
 
 class StudentLessonItemSerializer(serializers.ModelSerializer):
@@ -20,8 +22,7 @@ class StudentLessonItemSerializer(serializers.ModelSerializer):
         return getattr(obj, "questions_count", 0)
 
     def get_estimated_duration_minutes(self, obj):
-        questions_count = getattr(obj, "questions_count", 0)
-        return questions_count  # 1 savol = 1 minut
+        return estimated_test_minutes(getattr(obj, "questions_count", 0))
 
 
 class StudentModuleSerializer(serializers.ModelSerializer):

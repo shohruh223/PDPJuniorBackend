@@ -3,6 +3,7 @@ from django.db.models import F
 from django.utils import timezone
 from rest_framework import serializers
 import random
+from app.utils.text import estimated_test_minutes
 from app.models.question import Lesson, Question, Module
 from app.models.test import (
     StudentQuestionReward,
@@ -136,8 +137,7 @@ class StudentLessonItemSerializer(serializers.ModelSerializer):
         )
 
     def get_estimated_duration_minutes(self, obj):
-        count = getattr(obj, "questions_count", 0) or 0
-        return count + 1 if count > 0 else 1
+        return estimated_test_minutes(getattr(obj, "questions_count", 0))
 
 
 class StudentModuleWithLessonsSerializer(serializers.ModelSerializer):

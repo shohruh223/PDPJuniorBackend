@@ -520,6 +520,12 @@ ESKIZ_EMAIL = os.getenv("ESKIZ_EMAIL", "test@gmail.com")
 ESKIZ_PASSWORD = os.getenv("ESKIZ_PASSWORD", "")
 ESKIZ_SENDER = os.getenv("ESKIZ_SENDER", "4546")
 
+# Reytingda ma'lumot yo'q bo'lsa uni "taxmin qilib" ko'rsatishmi?
+# 0 (default) = haqiqiy qiymat yoki 0/bo'sh qaytadi.
+# 1 = eski xatti-harakat (oylik ball umumiy balning 18 %i, davomatdan
+# hisoblangan "streak"). Bu raqamlar haqiqiy emas.
+RANKING_ESTIMATE_MISSING = env_bool("RANKING_ESTIMATE_MISSING", False)
+
 # Login javobida PDP bearer tokenini mijozga berishmi?
 # Frontend uni ishlatmasligi tekshirilgach 0 ga o'tkazing — bu tashqi
 # servis credentiali va brauzerda turishi kerak emas.

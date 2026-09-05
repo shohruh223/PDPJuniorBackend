@@ -1,5 +1,9 @@
+import logging
+
 import requests
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 
 class PDPAPIError(Exception):
@@ -55,8 +59,13 @@ class PDPAuthAPIClient:
             except Exception:
                 error_payload = {"raw": response.text}
 
+            # Xato tafsiloti faqat logda; mijozga umumiy xabar ketadi.
+            logger.warning(
+                "PDP auth API HTTP %s (%s): %s", response.status_code, endpoint, error_payload
+            )
             raise PDPAPIError(
-                f"External auth API HTTP {response.status_code} xato qaytardi: {error_payload}",
+                (error_payload or {}).get("message")
+                or f"Tashqi servis xatosi (HTTP {response.status_code}).",
                 status_code=response.status_code,
                 payload=error_payload,
             )
