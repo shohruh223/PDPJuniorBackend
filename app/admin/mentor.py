@@ -51,6 +51,7 @@ class MentorAdminForm(forms.ModelForm):
 
 @admin.register(Mentor)
 class MentorAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
+    list_select_related = ("branch",)
     resource_class = MentorResource
     form = MentorAdminForm
 

@@ -69,17 +69,24 @@ class StudentTestBaseAPIView(APIView):
 
         return "uz"
 
-    def get_session_or_response(self, session_id, user, *, for_update=False):
+    def get_session_or_response(self, session_id, user, *, for_update=False, light=False):
+        """Sessionni yuklaydi.
+
+        `light=True` — savollar ro'yxati kerak emas (javob yuborish oqimi).
+        Ilgari har bir javob yuborishda butun `items__question` prefetch
+        qilinardi: 10-20 savollik testda bu ortiqcha ikkita so'rov va
+        keraksiz ma'lumot edi. 500 o'quvchi test yozayotganda bu eng
+        ko'p takrorlanadigan so'rov.
+        """
         sessions = TestSession.objects.filter(session_id=session_id, student=user)
         if for_update:
             sessions = sessions.select_for_update()
 
-        session = (
-            sessions
-            .select_related("lesson", "lesson__course", "lesson__module")
-            .prefetch_related("items__question")
-            .first()
-        )
+        sessions = sessions.select_related("lesson", "lesson__course", "lesson__module")
+        if not light:
+            sessions = sessions.prefetch_related("items__question")
+
+        session = sessions.first()
 
         if not session:
             return None, Response(
@@ -523,23 +530,59 @@ class SubmitAnswerAPIView(StudentTestBaseAPIView):
             ),
         },
     )
-    @transaction.atomic
     def post(self, request, session_id, *args, **kwargs):
-        session, error_response = self.get_session_or_response(
-            session_id,
-            request.user,
-            for_update=True,
-        )
-        if error_response:
-            return error_response
+        # DIQQAT: bu metod ataylab @transaction.atomic BILAN bezatilmagan.
+        # Ilgari shunday edi va muddati tugagan sessiya uchun ichkarida
+        # `session.finish()` chaqirilib, so'ng ValidationError ko'tarilardi.
+        # DRF bu istisnoni tranzaksiyadan TASHQARIDA 400 ga aylantirgani
+        # uchun `finish()` yozgan hamma narsa orqaga qaytarilardi: sessiya
+        # ochiq qolib, o'quvchi o'sha darsdan yangi test boshlay olmasdi.
+        # Endi muddat tekshiruvi tranzaksiyadan oldin, yozuvlar esa
+        # ichkarida.
+        expired = False
+        already_finished = False
 
-        serializer = SubmitAnswerSerializer(
-            data=request.data,
-            context={"session": session},
-        )
-        serializer.is_valid(raise_exception=True)
-        answer = serializer.save()
-        session.refresh_from_db(fields=["answered_count", "is_finished", "finished_at"])
+        with transaction.atomic():
+            # Session bir marta, qulf bilan yuklanadi (ilgari ikki marta
+            # yuklanardi: tekshiruv uchun va qulf uchun).
+            session = (
+                TestSession.objects.select_for_update()
+                .select_related("lesson", "lesson__course", "lesson__module")
+                .filter(session_id=session_id, student=request.user)
+                .first()
+            )
+            if session is None:
+                return Response(
+                    {"success": False, "message": "Session topilmadi."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if session.is_finished:
+                already_finished = True
+            elif session.is_expired():
+                # Bu yerda hech narsa yozilmaydi: `finish()` blokdan
+                # keyin, ya'ni istisno rollback qilmaydigan joyda.
+                expired = True
+            else:
+                serializer = SubmitAnswerSerializer(
+                    data=request.data,
+                    context={"session": session},
+                )
+                serializer.is_valid(raise_exception=True)
+                answer = serializer.save()
+
+        if already_finished:
+            return Response(
+                {"success": False, "message": "Test allaqachon tugagan."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if expired:
+            session.finish()
+            return Response(
+                {"success": False, "message": "Test vaqti tugagan."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         total = session.total_questions
         answered = session.answered_count

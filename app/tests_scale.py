@@ -488,3 +488,134 @@ class ShopCatalogTests(TestCase):
         client.credentials(HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(user).access_token}")
         response = client.get("/api/student/shop")
         self.assertEqual(response.status_code, 200)
+
+
+class CourseOwnershipTests(TestCase):
+    """IDOR: boshqa kursning modul/dars daraxti ko'rinmasligi kerak."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.python = Course.objects.create(name="Python")
+        cls.frontend = Course.objects.create(name="Frontend")
+        branch = Branch.objects.create(
+            name="Chilonzor", address="a", phone="+998900000000",
+            map_url="https://maps.example/x",
+        )
+        cls.user, cls.profile = make_student(1, cls.python, branch)
+
+        cls.other_module = Module.objects.create(course=cls.frontend, name="Boshqa modul", order=1)
+        cls.other_lesson = Lesson.objects.create(
+            course=cls.frontend, module=cls.other_module, name="Boshqa dars", order=1
+        )
+        own_module = Module.objects.create(course=cls.python, name="O'z moduli", order=1)
+        cls.own_lesson = Lesson.objects.create(
+            course=cls.python, module=own_module, name="O'z darsi", order=1
+        )
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.user).access_token}"
+        )
+
+    def test_other_course_module_is_forbidden(self):
+        response = self.client.get(f"/api/student/modules/{self.other_module.id}/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_other_course_lesson_is_forbidden(self):
+        response = self.client.get(f"/api/student/lessons/{self.other_lesson.id}/")
+        self.assertEqual(response.status_code, 403)
+
+    def test_lesson_list_never_leaks_other_courses(self):
+        response = self.client.get(f"/api/student/lessons?module_id={self.other_module.id}")
+        self.assertEqual(response.status_code, 200)
+        ids = [item["id"] for item in response.json()["data"]["lessons"]]
+        self.assertNotIn(self.other_lesson.id, ids)
+
+    def test_own_course_still_works(self):
+        response = self.client.get(f"/api/student/lessons/{self.own_lesson.id}/")
+        self.assertEqual(response.status_code, 200)
+
+
+class AnswerFlowTests(TestCase):
+    """Muddati tugagan sessiya yakunlanishi rollback bo'lmasligi kerak."""
+
+    @classmethod
+    def setUpTestData(cls):
+        course = Course.objects.create(name="Python")
+        branch = Branch.objects.create(
+            name="Chilonzor", address="a", phone="+998900000000",
+            map_url="https://maps.example/x",
+        )
+        cls.user, cls.profile = make_student(1, course, branch)
+        module = Module.objects.create(course=course, name="M1", order=1)
+        cls.lesson = Lesson.objects.create(course=course, module=module, name="D1", order=1)
+        for i in range(3):
+            Question.objects.create(
+                lesson=cls.lesson,
+                text={"uz": f"S{i}", "ru": f"S{i}", "en": f"S{i}"},
+                options={"A": {"uz": "a", "ru": "a", "en": "a"},
+                         "B": {"uz": "b", "ru": "b", "en": "b"}},
+                correct_option="A",
+            )
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.client.credentials(
+            HTTP_AUTHORIZATION=f"Bearer {RefreshToken.for_user(self.user).access_token}"
+        )
+
+    def test_expired_session_is_actually_finished(self):
+        """Regressiya: finish() ValidationError bilan orqaga qaytarilardi."""
+        start = self.client.post(
+            "/api/student/tests/start/", {"lesson_id": self.lesson.id}, format="json"
+        )
+        self.assertEqual(start.status_code, 201)
+        body = start.json()
+        session_id = body["session"]["session_id"]
+        question_id = body["questions"][0]["question"]["id"]
+
+        session = TestSession.objects.get(session_id=session_id)
+        TestSession.objects.filter(pk=session.pk).update(
+            expires_at=timezone.now() - timedelta(minutes=1)
+        )
+
+        response = self.client.post(
+            f"/api/student/tests/during/{session_id}/answer/",
+            {"question_id": question_id, "selected_option": "A"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, 400)
+
+        session.refresh_from_db()
+        self.assertTrue(
+            session.is_finished,
+            "Muddati tugagan sessiya bazada ham yakunlangan bo'lishi kerak.",
+        )
+        self.assertIsNotNone(session.finalized_at)
+
+        # Slot bo'shagani uchun yangi test boshlash mumkin
+        again = self.client.post(
+            "/api/student/tests/start/", {"lesson_id": self.lesson.id}, format="json"
+        )
+        self.assertEqual(again.status_code, 201)
+
+    def test_answer_flow_query_count_is_bounded(self):
+        start = self.client.post(
+            "/api/student/tests/start/", {"lesson_id": self.lesson.id}, format="json"
+        ).json()
+        session_id = start["session"]["session_id"]
+        qid = start["questions"][0]["question"]["id"]
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.post(
+                f"/api/student/tests/during/{session_id}/answer/",
+                {"question_id": qid, "selected_option": "A"},
+                format="json",
+            )
+        self.assertEqual(response.status_code, 200)
+        self.assertLessEqual(
+            len(ctx), 16,
+            f"Javob yuborish {len(ctx)} ta so'rov bajardi — bu eng ko'p takrorlanadigan so'rov.",
+        )

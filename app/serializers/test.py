@@ -224,28 +224,26 @@ class StartTestSessionSerializer(serializers.Serializer):
                 "module_id": "Tanlangan module ushbu lessonga tegishli emas."
             })
 
-        question_ids = list(
-            Question.objects
-            .filter(lesson=lesson)
-            .values_list("id", flat=True)
+        # Ilgari bu yerda ikkita so'rov bor edi: avval ID'lar, keyin
+        # `in_bulk()`. Savollar baribir to'liq kerak (snapshot uchun),
+        # shuning uchun bitta so'rovda olamiz va Python'da aralashtiramiz.
+        questions = list(
+            Question.objects.filter(lesson=lesson).only(
+                "id", "text", "images", "options", "correct_option", "lesson_id"
+            )
         )
-
-        questions_count = len(question_ids)
+        questions_count = len(questions)
 
         if questions_count == 0:
             raise serializers.ValidationError({
                 "lesson_id": "Bu lesson uchun savollar topilmadi."
             })
 
-        random.shuffle(question_ids)
+        random.shuffle(questions)
 
-        questions_map = Question.objects.in_bulk(question_ids)
-        questions = [
-            questions_map[question_id]
-            for question_id in question_ids
-            if question_id in questions_map
-        ]
-
+        # Ochiq sessiya tekshiruvi `create()` ichida qulf ostida qayta
+        # bajariladi (u yerda u avtoritativ). Bu yerdagi tekshiruv esa
+        # ortiqcha ish qilinmasligi uchun — xato darhol qaytadi.
         existing_session = TestSession.objects.filter(
             student=user,
             lesson=lesson,
@@ -338,11 +336,14 @@ class SubmitAnswerSerializer(serializers.Serializer):
         session = self.context["session"]
         question_id = attrs["question_id"]
 
+        # Muddat va yakunlanganlik tekshiruvi view'da, tranzaksiyadan
+        # OLDIN bajariladi (izohni `SubmitAnswerAPIView.post` da ko'ring).
+        # Bu yerda ular faqat qo'shimcha himoya sifatida qoladi va
+        # `finish()` chaqirmaydi — aks holda uning yozuvi rollback bo'lardi.
         if session.is_finished:
             raise serializers.ValidationError("Test allaqachon tugagan.")
 
         if session.is_expired():
-            session.finish()
             raise serializers.ValidationError("Test vaqti tugagan.")
 
         session_item = TestSessionQuestion.objects.select_related("question").filter(
@@ -401,8 +402,11 @@ class SubmitAnswerSerializer(serializers.Serializer):
         # sessionda to'g'ri javobini qaytarib olsa, reward ham qaytariladi.
         reward_delta = 0
         if not previous_is_correct and new_is_correct:
+            # `session.student` ga murojaat qilish User qatorini lazy
+            # yuklaydi — bu javob yuborish oqimidagi ortiqcha so'rov.
+            # `student_id` allaqachon xotirada.
             _, reward_created = StudentQuestionReward.objects.get_or_create(
-                student=session.student,
+                student_id=session.student_id,
                 question=question,
                 defaults={"session": session},
             )
@@ -412,7 +416,7 @@ class SubmitAnswerSerializer(serializers.Serializer):
             reward = (
                 StudentQuestionReward.objects.select_for_update()
                 .filter(
-                    student=session.student,
+                    student_id=session.student_id,
                     question=question,
                     session=session,
                 )
@@ -426,7 +430,7 @@ class SubmitAnswerSerializer(serializers.Serializer):
             from app.models.auth import StudentProfile
 
             student_profile = StudentProfile.objects.select_for_update().get(
-                user=session.student
+                user_id=session.student_id
             )
 
             student_profile.local_test_score = max(

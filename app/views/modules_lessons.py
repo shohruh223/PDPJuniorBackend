@@ -17,6 +17,18 @@ from app.services.portal.ranking_service import (
 )
 
 
+def _own_course_or_403(request):
+    """O'quvchining kursini qaytaradi, aniqlanmasa None."""
+    return get_student_course(request.user)
+
+
+def _forbidden(message="Bu ma'lumot sizning kursingizga tegishli emas."):
+    return Response(
+        {"success": False, "message": message},
+        status=status.HTTP_403_FORBIDDEN,
+    )
+
+
 lesson_schema = openapi.Schema(
     type=openapi.TYPE_OBJECT,
     properties={
@@ -87,15 +99,15 @@ class ModuleListAPIView(APIView):
     )
     def get(self, request, *args, **kwargs):
         course_id = request.query_params.get("course_id")
-        if course_id:
-            course = get_object_or_404(Course, pk=course_id)
-        else:
-            course = get_student_course(request.user)
-            if not course:
-                return Response(
-                    {"success": False, "message": "Student uchun course topilmadi."},
-                    status=status.HTTP_404_NOT_FOUND,
-                )
+        course = _own_course_or_403(request)
+        if not course:
+            return Response(
+                {"success": False, "message": "Student uchun course topilmadi."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        # XAVFSIZLIK: `?course_id=` faqat o'z kursiga ishora qila oladi.
+        if course_id and str(course_id) != str(course.id):
+            return _forbidden()
 
         modules = get_modules_with_lessons(course)
         data = [serialize_module_item(module, include_lessons=False) for module in modules]
@@ -157,12 +169,21 @@ class ModuleDetailAPIView(APIView):
             Module.objects.annotate(lessons_count=Count("lessons", distinct=True)),
             pk=module_id,
         )
-        lessons = (
+        # XAVFSIZLIK: ilgari egalik tekshirilmasdi — istalgan o'quvchi
+        # module_id=1..N ni ketma-ket so'rab, barcha kurslarning to'liq
+        # dars daraxtini o'qiy olardi.
+        course = _own_course_or_403(request)
+        if not course or module.course_id != course.id:
+            return _forbidden()
+
+        lessons = list(
             Lesson.objects.filter(module=module)
             .annotate(questions_count=Count("questions"))
             .order_by("order", "id")
         )
-        module.lessons_count = lessons.count()
+        # Ilgari bu yerda annotate qilingan `lessons_count` darhol
+        # `lessons.count()` bilan almashtirilardi — ortiqcha COUNT so'rovi.
+        module.lessons_count = len(lessons)
         payload = serialize_module_item(module, include_lessons=False)
         payload["lessons"] = [serialize_lesson_item(lesson) for lesson in lessons]
 
@@ -217,20 +238,23 @@ class LessonListAPIView(APIView):
         module_id = request.query_params.get("module_id")
         course_id = request.query_params.get("course_id")
 
-        lessons = Lesson.objects.annotate(questions_count=Count("questions"))
+        course = _own_course_or_403(request)
+        if not course:
+            return Response(
+                {"success": False, "message": "Filter yoki course topilmadi."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # XAVFSIZLIK: filtr qanday berilishidan qat'i nazar, natija
+        # har doim o'quvchining o'z kursi bilan cheklanadi.
+        lessons = Lesson.objects.annotate(questions_count=Count("questions")).filter(
+            course=course
+        )
 
         if module_id:
             lessons = lessons.filter(module_id=module_id)
-        elif course_id:
-            lessons = lessons.filter(course_id=course_id)
-        else:
-            course = get_student_course(request.user)
-            if not course:
-                return Response(
-                    {"success": False, "message": "Filter yoki course topilmadi."},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-            lessons = lessons.filter(course=course)
+        elif course_id and str(course_id) != str(course.id):
+            return _forbidden()
 
         lessons = lessons.select_related("module", "course").order_by("module__order", "order", "id")
         items = [serialize_lesson_item(lesson) for lesson in lessons]
@@ -287,6 +311,10 @@ class LessonDetailAPIView(APIView):
             Lesson.objects.annotate(questions_count=Count("questions")).select_related("module", "course"),
             pk=lesson_id,
         )
+        course = _own_course_or_403(request)
+        if not course or lesson.course_id != course.id:
+            return _forbidden()
+
         payload = serialize_lesson_item(lesson)
         payload["module"] = {
             "id": lesson.module_id,

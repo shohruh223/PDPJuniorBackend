@@ -43,9 +43,16 @@ graceful_timeout = _int("GUNICORN_GRACEFUL_TIMEOUT", 30)
 # Keep-alive: frontend ketma-ket so'rov yuborganda TLS qayta ochilmaydi.
 keepalive = _int("GUNICORN_KEEPALIVE", 15)
 
-# Sekin-asta o'sadigan xotirani tozalash uchun worker'lar davriy yangilanadi.
-max_requests = _int("GUNICORN_MAX_REQUESTS", 2000)
-max_requests_jitter = _int("GUNICORN_MAX_REQUESTS_JITTER", 200)
+# Worker'larni davriy yangilash — xotira gigienasi uchun.
+#
+# DIQQAT: har bir qayta ishga tushish o'sha worker'dagi ochiq keep-alive
+# ulanishlarni uzadi. Yuk sinovida 2000 qiymati 8500 so'rovda 5 marta
+# qayta ishga tushishga va mijozda ~0.06% ulanish xatosiga olib keldi.
+# DEBUG=0 bo'lgani uchun Django endi SQL so'rovlarni xotirada
+# to'plamaydi, ya'ni tez-tez yangilashga ehtiyoj yo'q.
+# 0 qiymati bu mexanizmni butunlay o'chiradi.
+max_requests = _int("GUNICORN_MAX_REQUESTS", 10000)
+max_requests_jitter = _int("GUNICORN_MAX_REQUESTS_JITTER", 1000)
 
 # Navbat: barcha thread'lar band bo'lsa so'rovlar shu yerda kutadi.
 backlog = _int("GUNICORN_BACKLOG", 1024)

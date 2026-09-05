@@ -1,3 +1,5 @@
+import os
+
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import path, include
@@ -82,8 +84,14 @@ schema_view = get_schema_view(
         contact=openapi.Contact(email="contact@snippets.local"),
         license=openapi.License(name="BSD License"),
     ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
+    # Productionda API xaritasi ochiq internetda turmasin.
+    # SWAGGER_PUBLIC=1 bilan ataylab ochish mumkin.
+    public=settings.DEBUG or os.getenv("SWAGGER_PUBLIC") == "1",
+    permission_classes=(
+        (permissions.AllowAny,)
+        if (settings.DEBUG or os.getenv("SWAGGER_PUBLIC") == "1")
+        else (permissions.IsAdminUser,)
+    ),
 )
 
 

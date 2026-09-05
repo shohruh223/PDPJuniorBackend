@@ -263,6 +263,7 @@ class QuestionAdminForm(forms.ModelForm):
 
 @admin.register(Question)
 class QuestionAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
+    list_select_related = ("lesson", "lesson__module", "lesson__course")
     resource_class = QuestionResource
     form = QuestionAdminForm
 
@@ -389,6 +390,7 @@ class CourseAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
 
 @admin.register(Module)
 class ModuleAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
+    list_select_related = ("course",)
     resource_class = ModuleResource
 
     list_display = (
@@ -461,6 +463,7 @@ class LessonAdminForm(forms.ModelForm):
 
 @admin.register(Lesson)
 class LessonAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
+    list_select_related = ("course", "module")
     resource_class = LessonResource
     form = LessonAdminForm
     change_list_template = "admin/app/lesson/change_list.html"

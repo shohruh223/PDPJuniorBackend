@@ -404,6 +404,7 @@ class UserAdmin(PrettyImportExportModelAdmin):
 
 @admin.register(StudentProfile)
 class StudentProfileAdmin(PrettyImportExportModelAdmin):
+    list_select_related = ("user", "course", "branch")
     resource_class = StudentProfileResource
 
     def get_model_perms(self, request):

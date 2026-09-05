@@ -4,7 +4,10 @@
 [Ll]ib
 [Ll]ib64
 [Ll]ocal
-[Ss]cripts
+# DIQQAT: bu naqsh virtualenv ichidagi Scripts/ papkasi uchun edi,
+# lekin u loyihaning o'z scripts/ papkasini ham yashirib qo'yardi
+# (yuk sinovi va JSON roundtrip skriptlari git'ga tushmagan edi).
+# .venv allaqachon e'tiborsiz qoldirilgani uchun bu naqsh keraksiz.
 pyvenv.cfg
 .venv
 pip-selfcheck.json

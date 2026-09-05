@@ -10,6 +10,7 @@ from app.models.payment import StudentInvoice, StudentPaymentHistory
 
 @admin.register(StudentPaymentHistory)
 class StudentPaymentHistoryAdmin(PrettyImportExportModelAdmin):
+    list_select_related = ("student_profile", "student_profile__user")
     resource_class = StudentPaymentHistoryResource
 
     list_display = [
@@ -62,6 +63,7 @@ class StudentPaymentHistoryAdmin(PrettyImportExportModelAdmin):
 
 @admin.register(StudentInvoice)
 class StudentInvoiceAdmin(PrettyImportExportModelAdmin):
+    list_select_related = ("student_profile", "student_profile__user")
     resource_class = StudentInvoiceResource
 
     list_display = [

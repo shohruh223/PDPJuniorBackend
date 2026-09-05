@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.conf import settings
 
 from app.models.auth import StudentProfile
@@ -61,11 +61,22 @@ def serialize_order(order: CoinOrder) -> dict:
 
 @transaction.atomic
 def purchase_product(*, profile: StudentProfile, product_id) -> tuple[CoinOrder | None, str | None]:
-    profile = (
-        StudentProfile.objects.select_for_update()
-        .select_related("user", "course", "branch")
-        .get(pk=profile.pk)
+    # DIQQAT: `select_for_update()` ni nullable FK'lar bo'yicha
+    # `select_related()` bilan birga ishlatib bo'lmaydi. `course` va
+    # `branch` null bo'lishi mumkin, shuning uchun Django LEFT OUTER JOIN
+    # quradi va PostgreSQL "FOR UPDATE cannot be applied to the nullable
+    # side of an outer join" xatosini beradi — ya'ni productionda HAR
+    # BIR XARID 500 bilan tugardi. (SQLite bu cheklovni e'tiborsiz
+    # qoldirgani uchun lokal testlarda ko'rinmasdi.)
+    #
+    # Yechim: PostgreSQL'da faqat asosiy jadvalni qulflaymiz (`of`),
+    # buni qo'llab-quvvatlamaydigan backendlarda esa `select_related`siz.
+    locked = StudentProfile.objects.select_for_update(
+        of=("self",) if connection.features.has_select_for_update_of else ()
     )
+    if connection.features.has_select_for_update_of:
+        locked = locked.select_related("user", "course", "branch")
+    profile = locked.get(pk=profile.pk)
 
     try:
         product = CoinProduct.objects.select_for_update().get(id=product_id, is_active=True)

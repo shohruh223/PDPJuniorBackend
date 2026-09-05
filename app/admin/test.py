@@ -72,6 +72,7 @@ class TestSessionAdmin(PrettyImportExportModelAdmin):
 
 @admin.register(TestSessionQuestion)
 class TestSessionQuestionAdmin(PrettyImportExportModelAdmin):
+    list_select_related = ("session", "question", "question__lesson")
     resource_class = TestSessionQuestionResource
     list_display = ("id", "session", "order", "question")
     list_filter = ("session__is_finished", "session__lesson__course")
@@ -86,6 +87,7 @@ class TestSessionQuestionAdmin(PrettyImportExportModelAdmin):
 
 @admin.register(TestSessionAnswer)
 class TestSessionAnswerAdmin(PrettyImportExportModelAdmin):
+    list_select_related = ("session", "question", "question__lesson")
     resource_class = TestSessionAnswerResource
     list_display = (
         "id",
