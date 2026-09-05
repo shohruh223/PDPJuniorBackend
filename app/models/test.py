@@ -13,35 +13,37 @@ class TestSession(models.Model):
     id = models.BigAutoField(primary_key=True)
 
     # tashqi API va endpointlar uchun UUID
-    session_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True)
+    session_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False, db_index=True, verbose_name="Sessiya ID")
 
     student = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="test_sessions",
+        verbose_name="O‘quvchi",
     )
     lesson = models.ForeignKey(
         Lesson,
         on_delete=models.CASCADE,
         related_name="test_sessions",
+        verbose_name="Dars",
     )
 
-    total_questions = models.PositiveIntegerField(default=0)
-    answered_count = models.PositiveIntegerField(default=0)
-    duration_minutes = models.PositiveIntegerField(default=0)
+    total_questions = models.PositiveIntegerField(default=0, verbose_name="Savollar soni")
+    answered_count = models.PositiveIntegerField(default=0, verbose_name="Javob berilgan")
+    duration_minutes = models.PositiveIntegerField(default=0, verbose_name="Davomiyligi (daq.)")
 
-    started_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField(null=True, blank=True)
-    finished_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True, verbose_name="Boshlangan vaqt")
+    expires_at = models.DateTimeField(null=True, blank=True, verbose_name="Tugash vaqti")
+    finished_at = models.DateTimeField(null=True, blank=True, verbose_name="Yakunlangan vaqt")
 
-    is_finished = models.BooleanField(default=False)
+    is_finished = models.BooleanField(default=False, verbose_name="Yakunlangan")
     # Natija yakunlanganda bir marta hisoblanadi. Shunday qilib keyinchalik
     # savol kontenti o'zgarsa ham sessionning asosiy statistikasi saqlanadi.
-    correct_count = models.PositiveIntegerField(default=0)
-    wrong_count = models.PositiveIntegerField(default=0)
-    unanswered_count = models.PositiveIntegerField(default=0)
-    percent = models.PositiveSmallIntegerField(default=0)
-    finalized_at = models.DateTimeField(null=True, blank=True)
+    correct_count = models.PositiveIntegerField(default=0, verbose_name="To‘g‘ri javoblar")
+    wrong_count = models.PositiveIntegerField(default=0, verbose_name="Xato javoblar")
+    unanswered_count = models.PositiveIntegerField(default=0, verbose_name="Javobsiz")
+    percent = models.PositiveSmallIntegerField(default=0, verbose_name="Foiz")
+    finalized_at = models.DateTimeField(null=True, blank=True, verbose_name="Hisoblangan vaqt")
 
     class Meta:
         ordering = ["-started_at"]
@@ -162,7 +164,12 @@ class TestSession(models.Model):
         invalidate_unlocked_modules_cache(self.student, course_id=course_id)
 
     def __str__(self):
-        return f"{self.student_id} | {self.lesson_id} | {self.session_id}"
+        # Ilgari uchta xom ID qaytarardi: "UUID | 12 | UUID". Bu matn
+        # admin jadvallarida FK ustuni sifatida ko'rinadi, shuning uchun
+        # odam o'qiy oladigan bo'lishi kerak. Qo'shimcha SQL so'rov
+        # bo'lmasligi uchun faqat shu jadvaldagi maydonlar ishlatiladi.
+        when = self.started_at.strftime("%d.%m.%Y %H:%M") if self.started_at else "—"
+        return f"Test · {when} · {str(self.session_id)[:8]}"
 
 
 class TestSessionQuestion(models.Model):
@@ -170,6 +177,7 @@ class TestSessionQuestion(models.Model):
         TestSession,
         on_delete=models.CASCADE,
         related_name="items",
+        verbose_name="Sessiya",
     )
     question = models.ForeignKey(
         Question,
@@ -177,14 +185,16 @@ class TestSessionQuestion(models.Model):
         # snapshot esa keyingi tahrirlardan tarixni himoya qiladi.
         on_delete=models.PROTECT,
         related_name="in_test_sessions",
+        verbose_name="Savol",
     )
-    order = models.PositiveSmallIntegerField()
-    question_snapshot = models.JSONField(default=dict, blank=True)
+    order = models.PositiveSmallIntegerField(verbose_name="Tartibi")
+    question_snapshot = models.JSONField(default=dict, blank=True, verbose_name="Savol nusxasi")
     correct_option_snapshot = models.CharField(
         max_length=1,
         choices=Question.OPTION_CHOICES,
         blank=True,
         default="",
+        verbose_name="To‘g‘ri javob nusxasi",
     )
 
     class Meta:
@@ -203,7 +213,9 @@ class TestSessionQuestion(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.session.session_id} #{self.order} -> Q{self.question_id}"
+        # `self.session.session_id` har bir qator uchun alohida SQL
+        # so'rov qilardi; `session_id` esa shu jadvalning o'z ustuni.
+        return f"{self.order}-savol · {str(self.session_id)[:8]}"
 
 
 class TestSessionAnswer(models.Model):
@@ -211,14 +223,16 @@ class TestSessionAnswer(models.Model):
         TestSession,
         on_delete=models.CASCADE,
         related_name="answers",
+        verbose_name="Test sessiyasi",
     )
     question = models.ForeignKey(
         Question,
         on_delete=models.PROTECT,
         related_name="test_answers",
+        verbose_name="Savol",
     )
-    selected_option = models.CharField(max_length=1, choices=Question.OPTION_CHOICES)
-    is_correct = models.BooleanField(default=False)
+    selected_option = models.CharField(max_length=1, choices=Question.OPTION_CHOICES, verbose_name="Tanlangan variant")
+    is_correct = models.BooleanField(default=False, verbose_name="To‘g‘ri")
 
     class Meta:
         verbose_name = "Test javobi"
@@ -231,7 +245,7 @@ class TestSessionAnswer(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.session.session_id} | Q{self.question_id} | {self.selected_option}"
+        return f"Javob «{self.selected_option}» · {str(self.session_id)[:8]}"
 
 
 class StudentQuestionReward(models.Model):
@@ -241,11 +255,13 @@ class StudentQuestionReward(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="question_rewards",
+        verbose_name="O‘quvchi",
     )
     question = models.ForeignKey(
         Question,
         on_delete=models.PROTECT,
         related_name="student_rewards",
+        verbose_name="Savol",
     )
     session = models.ForeignKey(
         TestSession,
@@ -253,12 +269,13 @@ class StudentQuestionReward(models.Model):
         null=True,
         blank=True,
         related_name="awarded_rewards",
+        verbose_name="Test sessiyasi",
     )
-    awarded_at = models.DateTimeField(auto_now_add=True)
+    awarded_at = models.DateTimeField(auto_now_add=True, verbose_name="Berilgan vaqt")
 
     class Meta:
-        verbose_name = "Savol rewardi"
-        verbose_name_plural = "Savol rewardlari"
+        verbose_name = "Savol mukofoti"
+        verbose_name_plural = "Savol mukofotlari"
         constraints = [
             models.UniqueConstraint(
                 fields=["student", "question"],
@@ -267,4 +284,4 @@ class StudentQuestionReward(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.student_id} | Q{self.question_id}"
+        return f"Mukofot · savol {self.question_id}"

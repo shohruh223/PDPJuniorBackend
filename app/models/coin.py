@@ -9,25 +9,27 @@ class CoinProduct(BaseModel):
         BOOK = "book", "Kitoblar"
         SPECIAL = "special", "Maxsus"
 
-    name = models.CharField(max_length=120)
-    description = models.TextField()
-    price = models.PositiveIntegerField()
-    image = models.ImageField(upload_to="coin-products/", blank=True, null=True)
-    image_url = models.CharField(max_length=500, blank=True, default="")
+    name = models.CharField(max_length=120, verbose_name="Mahsulot nomi")
+    description = models.TextField(verbose_name="Tavsifi")
+    price = models.PositiveIntegerField(verbose_name="Narxi (coin)")
+    image = models.ImageField(upload_to="coin-products/", blank=True, null=True, verbose_name="Rasmi")
+    image_url = models.CharField(max_length=500, blank=True, default="", verbose_name="Rasm havolasi")
     category = models.CharField(
         max_length=20,
         choices=CategoryChoices.choices,
         default=CategoryChoices.ACADEMY,
         db_index=True,
+        verbose_name="Toifasi",
     )
-    stock = models.PositiveIntegerField(default=0)
-    emoji = models.CharField(max_length=16, default="🎁")
+    stock = models.PositiveIntegerField(default=0, verbose_name="Ombordagi soni")
+    emoji = models.CharField(max_length=16, default="🎁", verbose_name="Emoji")
     bg_gradient = models.CharField(
         max_length=200,
         blank=True,
         default="linear-gradient(135deg,#ff2fd5,#7c3aed)",
+        verbose_name="Fon gradienti",
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
 
     class Meta:
         db_table = "coin_products"
@@ -59,6 +61,7 @@ class CoinOrder(BaseModel):
         "app.StudentProfile",
         on_delete=models.CASCADE,
         related_name="coin_orders",
+        verbose_name="O‘quvchi",
     )
     product = models.ForeignKey(
         CoinProduct,
@@ -66,26 +69,28 @@ class CoinOrder(BaseModel):
         null=True,
         blank=True,
         related_name="orders",
+        verbose_name="Mahsulot",
     )
-    product_title = models.CharField(max_length=120)
-    price = models.PositiveIntegerField()
+    product_title = models.CharField(max_length=120, verbose_name="Mahsulot nomi")
+    price = models.PositiveIntegerField(verbose_name="Narxi (coin)")
     status = models.CharField(
         max_length=20,
         choices=StatusChoices.choices,
         default=StatusChoices.PENDING,
         db_index=True,
+        verbose_name="Holati",
     )
-    student_name = models.CharField(max_length=120, blank=True, default="")
-    student_phone = models.CharField(max_length=20, blank=True, default="")
-    course_name = models.CharField(max_length=120, blank=True, default="")
-    branch_name = models.CharField(max_length=120, blank=True, default="")
-    group_name = models.CharField(max_length=120, blank=True, default="")
-    balance_before = models.PositiveIntegerField(default=0)
-    balance_after = models.PositiveIntegerField(default=0)
-    telegram_sent_at = models.DateTimeField(blank=True, null=True)
-    telegram_error = models.TextField(blank=True, default="")
-    is_admin_read = models.BooleanField(default=False, db_index=True)
-    admin_read_at = models.DateTimeField(blank=True, null=True)
+    student_name = models.CharField(max_length=120, blank=True, default="", verbose_name="O‘quvchi ismi")
+    student_phone = models.CharField(max_length=20, blank=True, default="", verbose_name="O‘quvchi telefoni")
+    course_name = models.CharField(max_length=120, blank=True, default="", verbose_name="Kurs")
+    branch_name = models.CharField(max_length=120, blank=True, default="", verbose_name="Filial")
+    group_name = models.CharField(max_length=120, blank=True, default="", verbose_name="Guruh")
+    balance_before = models.PositiveIntegerField(default=0, verbose_name="Xariddan oldingi balans")
+    balance_after = models.PositiveIntegerField(default=0, verbose_name="Xariddan keyingi balans")
+    telegram_sent_at = models.DateTimeField(blank=True, null=True, verbose_name="Telegramga yuborildi")
+    telegram_error = models.TextField(blank=True, default="", verbose_name="Telegram xatosi")
+    is_admin_read = models.BooleanField(default=False, db_index=True, verbose_name="Admin ko‘rgan")
+    admin_read_at = models.DateTimeField(blank=True, null=True, verbose_name="Ko‘rilgan vaqti")
 
     class Meta:
         db_table = "coin_orders"

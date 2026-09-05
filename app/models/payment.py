@@ -12,11 +12,13 @@ class StudentPaymentHistory(BaseModel):
         StudentProfile,
         on_delete=models.CASCADE,
         related_name="payment_histories",
+        verbose_name="O‘quvchi",
     )
 
     external_id = models.CharField(
         max_length=128,
         db_index=True,
+        verbose_name="Tashqi ID",
     )
 
     invoice_number = models.CharField(
@@ -24,61 +26,71 @@ class StudentPaymentHistory(BaseModel):
         blank=True,
         default="",
         db_index=True,
+        verbose_name="Invoys raqami",
     )
 
     amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
         default=Decimal("0.00"),
+        verbose_name="Summasi",
     )
 
     aim = models.CharField(
         max_length=255,
         blank=True,
         default="",
+        verbose_name="Maqsadi",
     )
 
     time_table_name = models.CharField(
         max_length=255,
         blank=True,
         default="",
+        verbose_name="Dars jadvali",
     )
 
     group_name = models.CharField(
         max_length=255,
         blank=True,
         default="",
+        verbose_name="Guruh",
     )
 
     payment_type = models.CharField(
         max_length=255,
         blank=True,
         default="",
+        verbose_name="To‘lov turi",
     )
 
     date = models.DateTimeField(
         blank=True,
         null=True,
         db_index=True,
+        verbose_name="To‘lov sanasi",
     )
 
     created_date = models.DateTimeField(
         blank=True,
         null=True,
         db_index=True,
+        verbose_name="Yaratilgan sana",
     )
 
     cashier = models.CharField(
         max_length=255,
         blank=True,
         default="",
+        verbose_name="Kassir",
     )
 
-    canceled = models.BooleanField(default=False)
+    canceled = models.BooleanField(default=False, verbose_name="Bekor qilingan")
 
     raw_data = models.JSONField(
         default=dict,
         blank=True,
+        verbose_name="Xom ma’lumot",
     )
 
     class Meta:
@@ -141,12 +153,14 @@ class StudentInvoice(BaseModel):
         StudentProfile,
         on_delete=models.CASCADE,
         related_name="invoices",
+        verbose_name="O‘quvchi profili",
     )
 
     external_id = models.CharField(
         max_length=128,
         db_index=True,
         help_text="PDP invoiceId",
+        verbose_name="Tashqi ID",
     )
 
     invoice_number = models.CharField(
@@ -154,6 +168,7 @@ class StudentInvoice(BaseModel):
         blank=True,
         default="",
         db_index=True,
+        verbose_name="Invoys raqami",
     )
 
     invoice_status = models.CharField(
@@ -161,30 +176,35 @@ class StudentInvoice(BaseModel):
         blank=True,
         default="",
         db_index=True,
+        verbose_name="Invoys holati",
     )
 
     invoice_amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
         default=Decimal("0.00"),
+        verbose_name="Invoys summasi",
     )
 
     paid_invoice_amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
         default=Decimal("0.00"),
+        verbose_name="To‘langan summa",
     )
 
     debt_amount = models.DecimalField(
         max_digits=14,
         decimal_places=2,
         default=Decimal("0.00"),
+        verbose_name="Qarz summasi",
     )
 
     time_table_name = models.CharField(
         max_length=255,
         blank=True,
         default="",
+        verbose_name="Dars jadvali",
     )
 
     time_table_position = models.CharField(
@@ -192,24 +212,27 @@ class StudentInvoice(BaseModel):
         blank=True,
         default="",
         db_index=True,
+        verbose_name="Jadval o‘rni",
     )
 
     group_name = models.CharField(
         max_length=255,
         blank=True,
         default="",
+        verbose_name="Guruh nomi",
     )
 
     raw_data = models.JSONField(
         default=dict,
         blank=True,
+        verbose_name="Xom ma’lumot",
     )
 
     class Meta:
         db_table = "student_invoices"
         ordering = ["-updated_at", "-created_at"]
-        verbose_name = "Student invoysi"
-        verbose_name_plural = "Student invoyslari"
+        verbose_name = "O‘quvchi invoysi"
+        verbose_name_plural = "O‘quvchi invoyslari"
 
         constraints = [
             models.UniqueConstraint(

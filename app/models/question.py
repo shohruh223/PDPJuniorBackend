@@ -59,11 +59,11 @@ def validate_images_json(value):
 
 
 class Course(models.Model):
-    name = models.CharField(max_length=100, unique=True)
-    description = models.TextField(blank=True, default="")
-    image_url = models.CharField(max_length=500, blank=True, default="")
-    sort_order = models.PositiveIntegerField(default=0, db_index=True)
-    is_active = models.BooleanField(default=True, db_index=True)
+    name = models.CharField(max_length=100, unique=True, verbose_name="Nomi")
+    description = models.TextField(blank=True, default="", verbose_name="Tavsifi")
+    image_url = models.CharField(max_length=500, blank=True, default="", verbose_name="Rasm havolasi")
+    sort_order = models.PositiveIntegerField(default=0, db_index=True, verbose_name="Tartib raqami")
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name="Faol")
 
     def __str__(self):
         return self.name
@@ -79,9 +79,13 @@ class Module(models.Model):
         "app.Course",
         on_delete=models.CASCADE,
         related_name="modules"
+    ,
+        verbose_name="Kurs",
     )
-    name = models.CharField(max_length=255)
-    order = models.PositiveIntegerField()
+    name = models.CharField(max_length=255,
+        verbose_name="Modul nomi",
+    )
+    order = models.PositiveIntegerField(verbose_name="Tartibi")
 
     class Meta:
         db_table = "modules"
@@ -98,15 +102,20 @@ class Lesson(models.Model):
     course = models.ForeignKey(
         Course,
         on_delete=models.CASCADE,
-        related_name="lessons"
+        related_name="lessons",
+        verbose_name="Kurs",
     )
     module = models.ForeignKey(
         "app.Module",
         on_delete=models.CASCADE,
         related_name="lessons"
+    ,
+        verbose_name="Modul",
     )
-    name = models.CharField(max_length=255)
-    order = models.PositiveIntegerField()
+    name = models.CharField(max_length=255,
+        verbose_name="Dars nomi",
+    )
+    order = models.PositiveIntegerField(verbose_name="Tartib raqami")
 
     class Meta:
         verbose_name = "Dars"
@@ -145,18 +154,22 @@ class Question(models.Model):
         Lesson,
         on_delete=models.CASCADE,
         related_name="questions"
+    ,
+        verbose_name="Dars",
     )
 
-    text = models.JSONField()
-    images = models.JSONField(blank=True, default=dict)
-    options = models.JSONField()
+    text = models.JSONField(verbose_name="Savol matni")
+    images = models.JSONField(blank=True, default=dict, verbose_name="Rasmlar")
+    options = models.JSONField(verbose_name="Variantlar")
 
     correct_option = models.CharField(
         max_length=1,
         choices=OPTION_CHOICES
+    ,
+        verbose_name="To‘g‘ri javob",
     )
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan sana")
 
     def _validate_options(self):
         if not isinstance(self.options, dict):

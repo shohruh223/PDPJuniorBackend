@@ -21,27 +21,28 @@ def validate_avatar(value):
 
 
 class Mentor(models.Model):
-    name = models.CharField(max_length=120)
-    role = models.CharField(max_length=80)
-    bio = models.TextField(blank=True, default="")
+    name = models.CharField(max_length=120, verbose_name="Ismi")
+    role = models.CharField(max_length=80, verbose_name="Yo‘nalishi")
+    bio = models.TextField(blank=True, default="", verbose_name="Qisqa ma’lumot")
 
     branch = models.ForeignKey(
         "app.Branch",
         on_delete=models.PROTECT,
         related_name="mentors",
+        verbose_name="Filial",
     )
 
-    exp = models.CharField(max_length=50)
-    students_count = models.CharField(max_length=50)
+    exp = models.CharField(max_length=50, verbose_name="Tajribasi")
+    students_count = models.CharField(max_length=50, verbose_name="O‘quvchilar soni")
 
-    working_period_start = models.DateField()
+    working_period_start = models.DateField(verbose_name="Ishga kirgan sana")
 
-    avatar = models.JSONField(default=dict, blank=True, validators=[validate_avatar])
+    avatar = models.JSONField(default=dict, blank=True, validators=[validate_avatar], verbose_name="Rasmi")
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan sana")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Yangilangan sana")
 
     def clean(self):
         validate_avatar(self.avatar)

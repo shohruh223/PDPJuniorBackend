@@ -15,19 +15,22 @@ class MonthHero(BaseModel):
         StudentProfile,
         on_delete=models.CASCADE,
         related_name="month_heroes",
+        verbose_name="O‘quvchi",
     )
 
     period = models.DateField(
         default=current_period,
         db_index=True,
         help_text="Oy/yil filter uchun. Masalan: 2026-04-01",
+        verbose_name="Oy",
     )
     points = models.PositiveIntegerField(
         default=0,
         help_text="Shu oyda to'plangan ball. 0 bo'lsa student umumiy bali ishlatiladi.",
+        verbose_name="Ballari",
     )
 
-    is_active = models.BooleanField(default=True, db_index=True)
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name="Faol")
 
     class Meta:
         db_table = "month_heroes"

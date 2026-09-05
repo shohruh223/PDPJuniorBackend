@@ -16,18 +16,18 @@ def validate_portfolio_image(value):
 
 
 class Portfolio(models.Model):
-    name = models.CharField(max_length=120)
-    url = models.URLField(max_length=500)
-    image = models.JSONField(default=dict, blank=True, validators=[validate_portfolio_image])
-    desc = models.CharField(max_length=255)
-    student = models.CharField(max_length=120, blank=True, default="")
-    category = models.CharField(max_length=80, blank=True, default="")
-    year = models.CharField(max_length=4, blank=True, default="")
+    name = models.CharField(max_length=120, verbose_name="Loyiha nomi")
+    url = models.URLField(max_length=500, verbose_name="Havolasi")
+    image = models.JSONField(default=dict, blank=True, validators=[validate_portfolio_image], verbose_name="Rasmi")
+    desc = models.CharField(max_length=255, verbose_name="Tavsifi")
+    student = models.CharField(max_length=120, blank=True, default="", verbose_name="Muallifi")
+    category = models.CharField(max_length=80, blank=True, default="", verbose_name="Toifasi")
+    year = models.CharField(max_length=4, blank=True, default="", verbose_name="Yili")
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Yaratilgan sana")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Yangilangan sana")
 
     def clean(self):
         validate_portfolio_image(self.image)

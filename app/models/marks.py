@@ -12,11 +12,13 @@ class StudentMark(models.Model):
         "app.StudentProfile",
         on_delete=models.CASCADE,
         related_name="marks",
+        verbose_name="O‘quvchi",
     )
     course = models.ForeignKey(
         "app.Course",
         on_delete=models.CASCADE,
         related_name="student_marks",
+        verbose_name="Kurs",
     )
     lesson = models.ForeignKey(
         "app.Lesson",
@@ -24,19 +26,22 @@ class StudentMark(models.Model):
         null=True,
         blank=True,
         related_name="student_marks",
+        verbose_name="Dars",
     )
-    record_date = models.DateField(db_index=True)
+    record_date = models.DateField(db_index=True, verbose_name="Sanasi")
     attendance = models.CharField(
         max_length=10,
         choices=AttendanceChoices.choices,
         default=AttendanceChoices.PRESENT,
+        verbose_name="Davomat",
     )
     grade = models.PositiveSmallIntegerField(
         null=True,
         blank=True,
         choices=[(value, str(value)) for value in range(1, 6)],
+        verbose_name="Baho",
     )
-    verified = models.BooleanField(default=False)
+    verified = models.BooleanField(default=False, verbose_name="Tasdiqlangan")
 
     class Meta:
         verbose_name = "O‘quvchi bahosi"

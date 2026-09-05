@@ -27,8 +27,8 @@ class BaseModel(models.Model):
     Barcha modellarga umumiy UUID va timestamp fieldlar beradi.
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    created_at = models.DateTimeField(default=timezone.now)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(default=timezone.now, verbose_name="Yaratilgan sana")
+    updated_at = models.DateTimeField(auto_now=True, verbose_name="Yangilangan sana")
 
     class Meta:
         abstract = True
@@ -75,36 +75,42 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     Tizimdagi asosiy foydalanuvchi modeli.
     """
     class RoleChoices(models.TextChoices):
-        ADMIN = "admin", "Admin"
-        STUDENT = "student", "Student"
-        GUEST = "guest", "Guest"
+        ADMIN = "admin", "Administrator"
+        STUDENT = "student", "O‘quvchi"
+        GUEST = "guest", "Mehmon"
 
     phone_number = models.CharField(
         max_length=13,
         validators=[uzb_phone_validator],
         unique=True
+    ,
+        verbose_name="Telefon raqami",
     )
-    first_name = models.CharField(max_length=50, blank=True)
-    last_name = models.CharField(max_length=50, blank=True)
-    email = models.EmailField(blank=True, null=True)
+    first_name = models.CharField(max_length=50, blank=True, verbose_name="Ism")
+    last_name = models.CharField(max_length=50, blank=True, verbose_name="Familiya")
+    email = models.EmailField(blank=True, null=True, verbose_name="Elektron pochta")
 
     role = models.CharField(
         max_length=20,
         choices=RoleChoices.choices,
         default=RoleChoices.STUDENT
+    ,
+        verbose_name="Roli",
     )
 
-    photo = models.ImageField(upload_to="users/", blank=True, null=True)
-    birth_date = models.DateField(blank=True, null=True)
+    photo = models.ImageField(upload_to="users/", blank=True, null=True, verbose_name="Rasmi")
+    birth_date = models.DateField(blank=True, null=True, verbose_name="Tug‘ilgan sanasi")
 
     preferred_language = models.CharField(
         max_length=5,
         choices=LANGUAGES,
         default="uz"
+    ,
+        verbose_name="Tanlangan til",
     )
 
-    is_active = models.BooleanField(default=True)
-    is_staff = models.BooleanField(default=False)
+    is_active = models.BooleanField(default=True, verbose_name="Faol")
+    is_staff = models.BooleanField(default=False, verbose_name="Admin panelga kira oladi")
 
     USERNAME_FIELD = "phone_number"
     REQUIRED_FIELDS = []
@@ -112,7 +118,11 @@ class User(AbstractBaseUser, PermissionsMixin, BaseModel):
     objects = UserManager()
 
     def __str__(self):
-        return f"{self.phone_number} ({self.role})"
+        # Admin jadvallarida bu matn FK ustunlarida ko'rinadi. Ilgari
+        # "+998901112233 (student)" edi — rol har qatorda takrorlanib,
+        # ism esa umuman ko'rinmasdi.
+        name = f"{self.first_name} {self.last_name}".strip()
+        return f"{name} · {self.phone_number}" if name else str(self.phone_number)
 
     @property
     def full_name(self):
@@ -149,16 +159,18 @@ class StudentProfile(BaseModel):
         on_delete=models.CASCADE,
         related_name="student_profile",
         limit_choices_to={"role": User.RoleChoices.STUDENT},
+        verbose_name="Foydalanuvchi",
     )
-    external_id = models.UUIDField(blank=True, null=True, unique=True, db_index=True)
+    external_id = models.UUIDField(blank=True, null=True, unique=True, db_index=True, verbose_name="Tashqi ID (PDP)")
 
-    group_name = models.CharField(max_length=120, blank=True, db_index=True)
+    group_name = models.CharField(max_length=120, blank=True, db_index=True, verbose_name="Guruh nomi")
     course = models.ForeignKey(
         'app.Course',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
         related_name="student_profiles",
+        verbose_name="Kurs",
     )
 
     parent_phone = models.CharField(
@@ -166,16 +178,18 @@ class StudentProfile(BaseModel):
         blank=True,
         default="",
         validators=[uzb_phone_validator],
+        verbose_name="Ota-ona telefoni",
     )
-    address = models.CharField(max_length=255, blank=True, default="")
-    bio = models.TextField(blank=True, default="")
+    address = models.CharField(max_length=255, blank=True, default="", verbose_name="Manzil")
+    bio = models.TextField(blank=True, default="", verbose_name="Qisqa ma’lumot")
     avatar_url = models.CharField(
         max_length=500,
         blank=True,
         default="",
         help_text="Frontend yoki tashqi storage'dagi avatar URL/path.",
+        verbose_name="Avatar havolasi",
     )
-    streak_days = models.PositiveIntegerField(default=0)
+    streak_days = models.PositiveIntegerField(default=0, verbose_name="Ketma-ket kunlar")
 
     branch = models.ForeignKey(
         "app.Branch",
@@ -183,47 +197,49 @@ class StudentProfile(BaseModel):
         null=True,
         blank=True,
         related_name="student_profiles",
+        verbose_name="Filial",
     )
 
     # SCORE
-    api_score = models.IntegerField(default=0)
-    local_test_score = models.IntegerField(default=0)
-    total_score = models.IntegerField(default=0, db_index=True)
+    api_score = models.IntegerField(default=0, verbose_name="PDP bali")
+    local_test_score = models.IntegerField(default=0, verbose_name="Test bali")
+    total_score = models.IntegerField(default=0, db_index=True, verbose_name="Jami ball")
 
     # COIN
-    api_coin = models.IntegerField(default=0)
-    test_coin = models.IntegerField(default=0)
-    lesson_last_coin = models.IntegerField(default=0)
-    total_coin = models.IntegerField(default=0, db_index=True)
+    api_coin = models.IntegerField(default=0, verbose_name="PDP coini")
+    test_coin = models.IntegerField(default=0, verbose_name="Test coini")
+    lesson_last_coin = models.IntegerField(default=0, verbose_name="Oxirgi dars coini")
+    total_coin = models.IntegerField(default=0, db_index=True, verbose_name="Jami coin")
 
     all_debtor = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=Decimal("0.00"),
+        verbose_name="Umumiy qarz",
     )
-    attendance_average_percent = models.FloatField(default=0)
+    attendance_average_percent = models.FloatField(default=0, verbose_name="O‘rtacha davomat (%)")
 
-    last_synced_at = models.DateTimeField(blank=True, null=True)
-    pdp_access_token = models.TextField(blank=True, null=True)
+    last_synced_at = models.DateTimeField(blank=True, null=True, verbose_name="Oxirgi sinxronizatsiya")
+    pdp_access_token = models.TextField(blank=True, null=True, verbose_name="PDP tokeni")
 
     # Do'konda sarflangan coin. Ilgari xarid to'g'ridan-to'g'ri api_coin dan
     # yechilardi, keyingi PDP sinxronizatsiyasi esa uni qaytarib qo'yardi —
     # ya'ni cheksiz bepul xarid. Endi api_coin faqat PDP tomonidan
     # boshqariladi, sarflangan miqdor esa shu yerda alohida yig'iladi.
-    spent_coin = models.PositiveIntegerField(default=0)
+    spent_coin = models.PositiveIntegerField(default=0, verbose_name="Sarflangan coin")
 
     # PDP dashboard endpointidan kelgan, bazada ustuni yo'q ma'lumotlar
     # (joriy dars, moduleBarchart, studentDebtors). Ilgari ular faqat
     # jonli javobda bo'lgani uchun dashboard har chaqirilganda tashqi API
     # ga bloklovchi so'rov yuborishga majbur edi. Endi bu yerda saqlanadi
     # va endpoint bazadan o'qiydi.
-    external_snapshot = models.JSONField(default=dict, blank=True)
+    external_snapshot = models.JSONField(default=dict, blank=True, verbose_name="PDP ma’lumot nusxasi")
 
     class Meta:
         db_table = "student_profiles"
         ordering = ["-created_at"]
-        verbose_name = "Student profili"
-        verbose_name_plural = "Student profillari"
+        verbose_name = "O‘quvchi profili"
+        verbose_name_plural = "O‘quvchi profillari"
         indexes = [
             models.Index(fields=["group_name"]),
             models.Index(fields=["course"]),

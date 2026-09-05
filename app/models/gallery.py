@@ -9,22 +9,23 @@ class GalleryPost(BaseModel):
 
     category = models.JSONField(
         help_text='{"uz":"Tadbir","ru":"Событие","en":"Event"}',
+        verbose_name="Toifasi",
     )
-    icon = models.CharField(max_length=16, default="📰")
-    date = models.CharField(max_length=20, help_text="Masalan: 12.07.2026")
-    views_count = models.PositiveIntegerField(default=0)
-    views_display = models.CharField(max_length=20, blank=True, default="")
+    icon = models.CharField(max_length=16, default="📰", verbose_name="Belgisi")
+    date = models.CharField(max_length=20, help_text="Masalan: 12.07.2026", verbose_name="Sanasi")
+    views_count = models.PositiveIntegerField(default=0, verbose_name="Ko‘rishlar soni")
+    views_display = models.CharField(max_length=20, blank=True, default="", verbose_name="Ko‘rishlar (matn)")
 
-    cover_image = models.CharField(max_length=500, blank=True, default="")
-    cover_contain = models.BooleanField(default=False)
-    cover_bg = models.CharField(max_length=200, blank=True, default="")
+    cover_image = models.CharField(max_length=500, blank=True, default="", verbose_name="Muqova rasmi")
+    cover_contain = models.BooleanField(default=False, verbose_name="Muqovani to‘liq ko‘rsatish")
+    cover_bg = models.CharField(max_length=200, blank=True, default="", verbose_name="Muqova foni")
 
-    title = models.JSONField()
-    description = models.JSONField()
-    media = models.JSONField(default=list, blank=True)
+    title = models.JSONField(verbose_name="Sarlavhasi")
+    description = models.JSONField(verbose_name="Tavsifi")
+    media = models.JSONField(default=list, blank=True, verbose_name="Media fayllar")
 
-    is_active = models.BooleanField(default=True, db_index=True)
-    sort_order = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True, db_index=True, verbose_name="Faol")
+    sort_order = models.PositiveIntegerField(default=0, verbose_name="Tartib raqami")
 
     class Meta:
         db_table = "gallery_posts"
