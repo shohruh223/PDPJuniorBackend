@@ -74,7 +74,7 @@ class TestSessionAdmin(PrettyImportExportModelAdmin):
 class TestSessionQuestionAdmin(PrettyImportExportModelAdmin):
     list_select_related = ("session", "question", "question__lesson")
     resource_class = TestSessionQuestionResource
-    list_display = ("id", "session", "order", "question")
+    list_display = ("session", "order", "question", "id_short")
     list_filter = ("session__is_finished", "session__lesson__course")
     search_fields = (
         "session__session_id",
@@ -90,11 +90,11 @@ class TestSessionAnswerAdmin(PrettyImportExportModelAdmin):
     list_select_related = ("session", "question", "question__lesson")
     resource_class = TestSessionAnswerResource
     list_display = (
-        "id",
         "session",
         "question",
         "selected_option",
         "is_correct",
+        "id_short",
     )
     list_filter = (
         "is_correct",

@@ -129,11 +129,11 @@ class BranchAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     )
 
     list_display = (
-        "id",
         "name",
         "phone",
         "is_opened",
         "is_active",
+        "id_short",
         "row_actions",
     )
     list_filter = (

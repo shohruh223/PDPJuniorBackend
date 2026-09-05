@@ -284,10 +284,11 @@ class QuestionAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     )
 
     list_display = (
-        "id",
+        "question_preview",
         "lesson",
         "correct_option",
         "created_at",
+        "id_short",
         "row_actions",
     )
     list_filter = (
@@ -307,6 +308,24 @@ class QuestionAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     def get_model_perms(self, request):
         # Kurs, modul, dars va savollar bitta "Darslar" katalogida ko‘rsatiladi.
         return {}
+
+    @admin.display(description="Savol matni", ordering="text__uz")
+    def question_preview(self, obj):
+        """Savol matnining boshlanishi.
+
+        Ilgari ro‘yxatning birinchi ustuni UUID edi, ya‘ni admin qaysi
+        savolni ochayotganini faqat bosgandan keyin bilardi. `text` —
+        JSONField, matn `uz` kalitida turadi.
+        """
+        text = obj.text
+        if isinstance(text, dict):
+            text = text.get("uz") or next(
+                (v for v in text.values() if isinstance(v, str) and v), ""
+            )
+        text = (text or "").strip()
+        if not text:
+            return "— (matn yo‘q)"
+        return text if len(text) <= 70 else text[:69].rstrip() + "…"
 
     class Media:
         js = (
@@ -377,8 +396,8 @@ class CourseAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = CourseResource
 
     list_display = (
-        "id",
         "name",
+        "id_short",
         "row_actions",
     )
     search_fields = ("name",)
@@ -394,10 +413,10 @@ class ModuleAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     resource_class = ModuleResource
 
     list_display = (
-        "id",
+        "name",
         "course",
         "order",
-        "name",
+        "id_short",
         "row_actions",
     )
     list_filter = ("course",)
@@ -469,11 +488,11 @@ class LessonAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     change_list_template = "admin/app/lesson/change_list.html"
 
     list_display = (
-        "id",
+        "name",
         "course",
         "module",
         "order",
-        "name",
+        "id_short",
         "row_actions",
     )
     list_filter = (

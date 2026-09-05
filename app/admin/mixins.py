@@ -27,6 +27,24 @@ class HideChangelistFilterMixin:
 
     actions = None
 
+    @admin.display(description="ID")
+    def id_short(self, obj):
+        """UUID'ning qisqartirilgan ko‘rinishi.
+
+        Modellarning kaliti — 36 belgili UUID. U jadvalning BIRINCHI
+        ustuni bo‘lganida to‘rt qatorga bo‘linib ketardi va aynan o‘sha
+        o‘qib bo‘lmaydigan matn qatorning yagona havolasi edi. Endi
+        birinchi ustun — odam o‘qiy oladigan nom, UUID esa oxirida
+        qisqargan holda turadi; to‘liq qiymati `title` da, ya‘ni sichqoncha
+        ustiga olib borilsa ko‘rinadi va nusxa olish uchun ochib bo‘ladi.
+        """
+        value = str(getattr(obj, "pk", "") or "")
+        if not value:
+            return "—"
+        return format_html(
+            '<span class="pdp-id-chip" title="{}">{}</span>', value, value[:8]
+        )
+
     def get_changelist(self, request, **kwargs):
         return NoFilterSidebarChangeList
 

@@ -211,7 +211,6 @@ class MonthHeroAdmin(PrettyImportExportModelAdmin):
     actions = None
 
     list_display = (
-        "id",
         "student_full_name",
         "student_phone",
         "student_course",
@@ -220,6 +219,7 @@ class MonthHeroAdmin(PrettyImportExportModelAdmin):
         "period",
         "is_active",
         "created_at",
+        "id_short",
     )
 
     list_filter = (

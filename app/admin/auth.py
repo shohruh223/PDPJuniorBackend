@@ -420,7 +420,6 @@ class StudentProfileAdmin(PrettyImportExportModelAdmin):
         return {}
 
     list_display = (
-        "id",
         "user",
         "group_name",
         "course",
@@ -429,6 +428,7 @@ class StudentProfileAdmin(PrettyImportExportModelAdmin):
         "total_coin",
         "all_debtor",
         "attendance_average_percent",
+        "id_short",
     )
     list_filter = (
         "course",

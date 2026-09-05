@@ -67,13 +67,13 @@ class MentorAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     )
 
     list_display = (
-        "id",
         "name",
         "role",
         "branch",
         "exp",
         "students_count",
         "is_active",
+        "id_short",
         "row_actions",
     )
     list_filter = (

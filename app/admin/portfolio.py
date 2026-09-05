@@ -62,11 +62,11 @@ class PortfolioAdmin(RowActionsAdminMixin, PrettyImportExportModelAdmin):
     )
 
     list_display = (
-        "id",
         "name",
         "url",
         "desc",
         "is_active",
+        "id_short",
         "row_actions",
     )
     list_filter = ("is_active",)
