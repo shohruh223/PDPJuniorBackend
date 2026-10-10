@@ -20,6 +20,7 @@ ular esa env o'zgaruvchilaridan o'qiladi.
 
 import logging
 
+from django.conf import settings
 from rest_framework.throttling import AnonRateThrottle, ScopedRateThrottle, UserRateThrottle
 
 logger = logging.getLogger(__name__)
@@ -28,10 +29,24 @@ EXEMPT_PREFIXES = ("/health", "/admin", "/static")
 
 
 def _client_ip(request):
-    """Proxy ortida haqiqiy IP `X-Forwarded-For` da keladi."""
+    """Haqiqiy mijoz IP'si.
+
+    `X-Forwarded-For` ni mijoz o'zi yozib yuborishi mumkin, shuning uchun
+    uning BIRINCHI qiymatiga ishonib bo'lmaydi (har so'rovda boshqa IP
+    yozib, throttle'ni aylanib o'tish mumkin edi). Ishonchli proksi
+    (Render, Cloudflare va h.k.) ro'yxat OXIRIGA haqiqiy IP'ni qo'shadi,
+    shuning uchun oxiridan `TRUSTED_PROXY_COUNT`-chi qiymat olinadi.
+
+    TRUSTED_PROXY_COUNT=0 bo'lsa sarlavha butunlay e'tiborsiz qoldiriladi.
+    """
+    proxies = getattr(settings, "TRUSTED_PROXY_COUNT", 1)
     forwarded = request.META.get("HTTP_X_FORWARDED_FOR", "")
-    if forwarded:
-        return forwarded.split(",")[0].strip()
+    if forwarded and proxies > 0:
+        hops = [h.strip() for h in forwarded.split(",") if h.strip()]
+        if len(hops) >= proxies:
+            return hops[-proxies]
+        if hops:
+            return hops[0]
     return request.META.get("REMOTE_ADDR", "")
 
 

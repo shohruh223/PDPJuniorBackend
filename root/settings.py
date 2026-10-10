@@ -103,7 +103,7 @@ ROOT_URLCONF = 'root.urls'
 
 CORS_ALLOW_ALL_ORIGINS = False
 # Qo'shimcha originlarni env orqali bering: CORS_ALLOWED_ORIGINS=https://a.uz,https://b.uz
-CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS") + [
+_LOCAL_DEV_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "http://localhost:5174",
@@ -116,8 +116,12 @@ CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS") + [
     "http://127.0.0.1:8000",
     "http://localhost:8080",
     "http://127.0.0.1:8080",
-    'https://pdp-junior-test.netlify.app'
 ]
+# Productionda lokal originlar ro'yxatda bo'lmasligi kerak: ular faqat
+# DEBUG da qo'shiladi. Qo'shimcha originlar env orqali beriladi.
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS") + [
+    "https://pdp-junior-test.netlify.app",
+] + (_LOCAL_DEV_ORIGINS if DEBUG else [])
 CORS_ALLOW_CREDENTIALS = False
 # Preflight javobini brauzer 24 soat keshlaydi — har so'rovdan oldingi
 # ortiqcha OPTIONS chaqiruvlari yo'qoladi.
@@ -276,6 +280,23 @@ DJANGO_SESSION_CLEANUP_ENABLED = env_bool("DJANGO_SESSION_CLEANUP_ENABLED", True
 
 REDIS_CACHE_ENABLED = env_bool("REDIS_CACHE_ENABLED", REDIS_AVAILABLE)
 REDIS_CACHE_URL = os.getenv("REDIS_CACHE_URL") or _redis_db(REDIS_URL, 1)
+
+# Productionda Redis'siz ishga tushmaymiz: LocMemCache har gunicorn
+# worker'ida alohida bo'lgani uchun parol tiklash tokeni boshqa worker'da
+# topilmaydi, throttle ishlamaydi va modul qulfi keshi noto'g'ri bo'ladi.
+# Ataylab o'chirish: ALLOW_LOCMEM_CACHE=1 (faqat bitta worker'li muhit uchun).
+_RUNNING_TESTS = "test" in sys.argv or bool(os.getenv("PYTEST_CURRENT_TEST"))
+if (
+    not DEBUG
+    and not _RUNNING_TESTS
+    and not (REDIS_CACHE_ENABLED and REDIS_CACHE_URL)
+    and not env_bool("ALLOW_LOCMEM_CACHE", False)
+):
+    raise ImproperlyConfigured(
+        "Productionda (DEBUG=0) REDIS_URL majburiy. Kesh va throttle "
+        "worker'lar orasida bo'lishilmasa parol tiklash va rate limiting "
+        "ishlamaydi. Bitta worker'li muhitda ALLOW_LOCMEM_CACHE=1 qo'ying."
+    )
 
 if REDIS_CACHE_ENABLED and REDIS_CACHE_URL:
     CACHES = {
@@ -471,6 +492,9 @@ APPEND_SLASH = False
 # ---------------------------------------------------------------------
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 USE_X_FORWARDED_HOST = env_bool("USE_X_FORWARDED_HOST", not DEBUG)
+# Throttle IP'ni aniqlashda nechta ishonchli proksi borligi (Render = 1,
+# Cloudflare + Render = 2). 0 = X-Forwarded-For ga umuman ishonilmaydi.
+TRUSTED_PROXY_COUNT = env_int("TRUSTED_PROXY_COUNT", 1)
 
 if not DEBUG:
     SECURE_SSL_REDIRECT = env_bool("SECURE_SSL_REDIRECT", True)
