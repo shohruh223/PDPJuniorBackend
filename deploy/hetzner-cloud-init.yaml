@@ -16,7 +16,9 @@ write_files:
       chmod 644 /var/log/pdpjunior-bootstrap.log
 
       # ===================== O'ZGARTIRING =====================
-      DOMAIN="CHANGE_ME.example.uz"
+      # Domen yo'q bo'lsa "auto" qoldiring: server o'z IP'sidan <ip>.sslip.io manzil yasaydi
+      # (haqiqiy HTTPS bilan). O'z domeningiz bo'lsa: DOMAIN="api.misol.uz".
+      DOMAIN="CHANGE_ME"
       # GitHub Actions uchun ochiq kalit (ssh-keygen -t ed25519 -f deploy_key, faqat .pub faylini qo'ying):
       DEPLOY_PUBKEY="CHANGE_ME ssh-ed25519 AAAA..."
       # ========================================================
@@ -33,6 +35,12 @@ write_files:
       APT="apt-get -o DPkg::Lock::Timeout=300 -y"
       $APT update
       $APT install git ufw curl ca-certificates fail2ban
+
+      if [ "$DOMAIN" = "auto" ]; then
+        IP=$(curl -fsS --retry 5 --retry-delay 3 http://169.254.169.254/hetzner/v1/metadata/public-ipv4)
+        DOMAIN="${IP//./-}.sslip.io"
+        echo "==> DOMAIN=auto -> $DOMAIN"
+      fi
 
       echo "==> Docker"
       curl -fsSL https://get.docker.com | sh
