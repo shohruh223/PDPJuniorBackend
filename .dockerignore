@@ -1,0 +1,23 @@
+# Sirlar va lokal holat image ichiga tushmasligi shart
+.env
+.env.*
+!.env.example
+db.sqlite3
+*.sqlite3
+*.bundle
+
+# Virtual muhit, git, IDE
+.venv
+venv
+.git
+.idea
+__pycache__
+*.pyc
+.pytest_cache
+
+# Katta/keraksiz papkalar
+media
+data
+_to_delete
+backups
+node_modules

@@ -3,7 +3,9 @@ from pathlib import Path
 
 from django.core import serializers
 from django.core.management.base import BaseCommand, CommandError
-from django.db import transaction
+from django.apps import apps
+from django.core.management.color import no_style
+from django.db import connection, transaction
 
 from app.services.data_transfer import discover_import_files
 
@@ -125,9 +127,30 @@ class Command(BaseCommand):
                     "Import xatolari (rollback):\n" + "\n".join(errors)
                 )
 
+        self._reset_sequences()
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"OK: yaratildi={created}, yangilandi={updated}, "
                 f"jami={created + updated}"
             )
         )
+
+    def _reset_sequences(self):
+        """PostgreSQL: aniq PK bilan yozilgan jadvallarning sequence'larini tiklaydi.
+
+        Aks holda ketma-ket (BigAutoField) ID'li jadvallarga keyingi yangi
+        yozuv allaqachon band bo'lgan ID olib, "duplicate key" bilan
+        yiqiladi. `loaddata` buni o'zi qiladi, bu buyruq esa `obj.save()`
+        ishlatgani uchun qo'lda bajarish kerak. SQLite'da hech narsa qilmaydi.
+        """
+        if connection.vendor != "postgresql":
+            return
+        models_ = list(apps.get_app_config("app").get_models())
+        statements = connection.ops.sequence_reset_sql(no_style(), models_)
+        if not statements:
+            return
+        with connection.cursor() as cursor:
+            for statement in statements:
+                cursor.execute(statement)
+        self.stdout.write(f"Sequence'lar tiklandi ({len(statements)} ta jadval).")

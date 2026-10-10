@@ -104,3 +104,7 @@ data/exports/*_tables/
 !data/exports/.gitkeep
 
 backup-before-history-rewrite.bundle
+
+# Server sirlari va zaxira nusxalar
+.env.prod
+backups/

@@ -1,0 +1,140 @@
+# PDP Junior backend — bitta serverda ishga tushirish.
+#   ./deploy.sh              (tavsiya etiladi)
+# yoki qo'lda:
+#   docker compose --env-file .env.prod up -d --build
+#
+# Celery (PDP sinxronizatsiyasi, Telegram, tozalash vazifalari) ixtiyoriy:
+# .env.prod da CELERY_ENABLED=1 qo'ysangiz deploy.sh `celery` profilini
+# o'zi yoqadi.
+
+name: pdpjunior
+
+x-app-env: &app-env
+  DEBUG: "0"
+  SECRET_KEY: ${SECRET_KEY:?SECRET_KEY .env.prod da bo'lishi shart}
+  ALLOWED_HOSTS: ${DOMAIN:?DOMAIN .env.prod da bo'lishi shart},${EXTRA_ALLOWED_HOSTS:-localhost}
+  CSRF_TRUSTED_ORIGINS: https://${DOMAIN}
+  CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
+  DATABASE_URL: postgres://${POSTGRES_USER:-pdpjunior}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod da bo'lishi shart}@db:5432/${POSTGRES_DB:-pdpjunior}
+  # Baza compose tarmog'i ichida: TLS kerak emas.
+  DB_SSL_REQUIRE: "0"
+  REDIS_URL: redis://:${REDIS_PASSWORD:?REDIS_PASSWORD .env.prod da bo'lishi shart}@redis:6379/0
+  REDIS_CACHE_ENABLED: "1"
+  CELERY_ENABLED: ${CELERY_ENABLED:-0}
+  # Caddy = 1 ta ishonchli proksi. Cloudflare ham bo'lsa: 2.
+  TRUSTED_PROXY_COUNT: ${TRUSTED_PROXY_COUNT:-1}
+  GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+  GUNICORN_THREADS: ${GUNICORN_THREADS:-8}
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pdpjunior}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD .env.prod da bo'lishi shart}
+      POSTGRES_DB: ${POSTGRES_DB:-pdpjunior}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?REDIS_PASSWORD .env.prod da bo'lishi shart}", "--appendonly", "yes", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:?REDIS_PASSWORD .env.prod da bo'lishi shart}
+
+  web:
+    build: .
+    image: pdpjunior-backend:latest
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      <<: *app-env
+      RUN_MIGRATIONS: "1"
+      # R2 yoqilgan bo'lsa .env.prod dagi USE_R2/R2_* o'zgaruvchilari ishlaydi.
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - media:/app/media
+    healthcheck:
+      # Host sarlavhasi ALLOWED_HOSTS'ga, X-Forwarded-Proto esa HTTPS
+      # yo'naltirishiga (SECURE_SSL_REDIRECT) mos bo'lishi shart.
+      test: ["CMD", "python", "-c", "import os,urllib.request as u; u.urlopen(u.Request('http://127.0.0.1:8000/health', headers={'Host': os.environ['DOMAIN'], 'X-Forwarded-Proto': 'https'}), timeout=4)"]
+      interval: 15s
+      timeout: 6s
+      retries: 5
+      start_period: 40s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - media:/srv/media:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+
+  worker:
+    profiles: ["celery"]
+    image: pdpjunior-backend:latest
+    restart: unless-stopped
+    env_file: .env.prod
+    environment: *app-env
+    command: ["celery", "-A", "root", "worker", "-l", "info", "-Q", "pdp-junior", "--concurrency", "${CELERY_CONCURRENCY:-4}", "--max-tasks-per-child", "200"]
+    depends_on:
+      web:
+        condition: service_healthy
+
+  maintenance:
+    profiles: ["celery"]
+    image: pdpjunior-backend:latest
+    restart: unless-stopped
+    env_file: .env.prod
+    environment: *app-env
+    command: ["celery", "-A", "root", "worker", "-l", "info", "-Q", "pdp-junior-maintenance", "--concurrency", "1", "--max-tasks-per-child", "20"]
+    depends_on:
+      web:
+        condition: service_healthy
+
+  beat:
+    profiles: ["celery"]
+    image: pdpjunior-backend:latest
+    restart: unless-stopped
+    env_file: .env.prod
+    environment: *app-env
+    command: ["celery", "-A", "root", "beat", "-l", "info", "--schedule", "/tmp/celerybeat-schedule"]
+    depends_on:
+      web:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  media:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,23 @@
+# HTTPS avtomatik: Caddy sertifikatni o'zi oladi va yangilaydi.
+# DOMAIN .env.prod dan keladi. Lokal sinov uchun DOMAIN=localhost.
+{$DOMAIN} {
+	encode zstd gzip
+
+	# R2 ishlatilmasa, yuklangan fayllar shu volume'dan beriladi.
+	handle_path /media/* {
+		root * /srv/media
+		header X-Content-Type-Options nosniff
+		file_server
+	}
+
+	# Qolgan hamma narsa Django'ga. X-Forwarded-For/Proto'ni Caddy o'zi
+	# to'g'ri qo'yadi (mijoz yuborganini ishonchsiz deb hisoblaydi), shuning
+	# uchun TRUSTED_PROXY_COUNT=1.
+	handle {
+		reverse_proxy web:8000
+	}
+
+	log {
+		output stdout
+	}
+}

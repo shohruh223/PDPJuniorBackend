@@ -187,6 +187,18 @@ if DATABASE_URL:
         "connect_timeout", env_int("DB_CONNECT_TIMEOUT", 10)
     )
 else:
+    # Productionda DATABASE_URL unutilsa, ilova jimgina bo'sh SQLite faylga
+    # yozishga tushib ketardi (konteynerda esa u har deployda yo'qoladi).
+    # Ataylab ruxsat berish uchun: ALLOW_SQLITE=1.
+    if (
+        not DEBUG
+        and not ("test" in sys.argv or os.getenv("PYTEST_CURRENT_TEST"))
+        and not env_bool("ALLOW_SQLITE", False)
+    ):
+        raise ImproperlyConfigured(
+            "Productionda (DEBUG=0) DATABASE_URL majburiy (PostgreSQL). "
+            "SQLite faqat lokal ishlab chiqish uchun."
+        )
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
