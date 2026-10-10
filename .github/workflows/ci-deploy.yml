@@ -1,0 +1,82 @@
+name: CI / Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Bir vaqtda faqat bitta deploy; yangisi navbat kutadi (ish o'rtasida bekor qilinmaydi).
+concurrency:
+  group: ci-deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pdpjunior
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: pdpjunior
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U pdpjunior"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      SECRET_KEY: ci-only-not-a-secret
+      ALLOWED_HOSTS: localhost
+      DATABASE_URL: postgres://pdpjunior:ci@localhost:5432/pdpjunior
+      DB_SSL_REQUIRE: "0"
+      SECURE_SSL_REDIRECT: "0"
+      ALLOW_LOCMEM_CACHE: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Migratsiyalar modellarga mosmi
+        run: python manage.py makemigrations --check --dry-run
+      - name: Statik fayllar (admin testlari manifest talab qiladi)
+        run: python manage.py collectstatic --noinput
+      - name: Testlar (PostgreSQL)
+        run: python manage.py test app --noinput
+
+  deploy:
+    needs: test
+    # Faqat main'ga push (yoki qo'lda) bo'lganda; PR'larda hech qachon.
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Serverga SSH orqali deploy
+        env:
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HOST:-}" ] || [ -z "${SSH_KEY:-}" ]; then
+            echo "DEPLOY_HOST va DEPLOY_SSH_KEY secret'lari kiritilmagan." >&2
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          if [ -n "${KNOWN_HOSTS:-}" ]; then
+            printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          else
+            # DEPLOY_KNOWN_HOSTS berilmasa: birinchi ulanishga ishonamiz (TOFU).
+            ssh-keyscan -T 15 -H "$HOST" > ~/.ssh/known_hosts
+          fi
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=yes -o ConnectTimeout=20 \
+            "${DEPLOY_USER:-deploy}@${HOST}" 'cd /opt/pdpjunior && ./deploy.sh'

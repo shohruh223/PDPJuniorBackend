@@ -1,0 +1,67 @@
+#cloud-config
+# PDP Junior — Hetzner Cloud: "Create server" -> "Cloud config" maydoniga shu faylni qo'ying.
+# Server birinchi marta yoqilganda o'zi: Docker o'rnatadi, firewall yoqadi, `deploy`
+# foydalanuvchisini yaratadi, kodni klon qiladi va ./deploy.sh ni ishga tushiradi.
+#
+# QO'YISHDAN OLDIN pastdagi 2 ta qiymatni o'zgartiring (DOMAIN, DEPLOY_PUBKEY).
+# Jarayonni kuzatish:  ssh root@SERVER_IP  tail -f /var/log/pdpjunior-bootstrap.log
+ssh_pwauth: false
+write_files:
+  - path: /root/bootstrap-pdpjunior.sh
+    permissions: "0700"
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      exec > >(tee -a /var/log/pdpjunior-bootstrap.log) 2>&1
+      chmod 644 /var/log/pdpjunior-bootstrap.log
+
+      # ===================== O'ZGARTIRING =====================
+      DOMAIN="CHANGE_ME.example.uz"
+      # GitHub Actions uchun ochiq kalit (ssh-keygen -t ed25519 -f deploy_key, faqat .pub faylini qo'ying):
+      DEPLOY_PUBKEY="CHANGE_ME ssh-ed25519 AAAA..."
+      # ========================================================
+      REPO="https://github.com/shohruh223/PDPJuniorBackend.git"
+      BRANCH="main"
+      APP_DIR="/opt/pdpjunior"
+
+      case "$DOMAIN$DEPLOY_PUBKEY" in
+        *CHANGE_ME*) echo "XATO: DOMAIN va DEPLOY_PUBKEY o'zgartirilmagan."; exit 1 ;;
+      esac
+
+      echo "==> $(date -u +%FT%TZ) bootstrap boshlandi: $DOMAIN"
+      export DEBIAN_FRONTEND=noninteractive
+      APT="apt-get -o DPkg::Lock::Timeout=300 -y"
+      $APT update
+      $APT install git ufw curl ca-certificates fail2ban
+
+      echo "==> Docker"
+      curl -fsSL https://get.docker.com | sh
+      systemctl enable --now docker
+
+      echo "==> Firewall (22, 80, 443)"
+      ufw default deny incoming
+      ufw default allow outgoing
+      ufw allow 22/tcp
+      ufw allow 80/tcp
+      ufw allow 443/tcp
+      ufw allow 443/udp
+      ufw --force enable
+
+      echo "==> deploy foydalanuvchisi"
+      id deploy >/dev/null 2>&1 || useradd -m -s /bin/bash -G docker deploy
+      install -d -m 700 -o deploy -g deploy /home/deploy/.ssh
+      printf '%s\n' "$DEPLOY_PUBKEY" > /home/deploy/.ssh/authorized_keys
+      chown deploy:deploy /home/deploy/.ssh/authorized_keys
+      chmod 600 /home/deploy/.ssh/authorized_keys
+
+      echo "==> Kod: $REPO ($BRANCH)"
+      git clone --branch "$BRANCH" "$REPO" "$APP_DIR"
+      chown -R deploy:deploy "$APP_DIR"
+
+      echo "==> deploy.sh"
+      sudo -u deploy -H bash -c "cd '$APP_DIR' && DOMAIN='$DOMAIN' SKIP_PULL=1 ./deploy.sh"
+
+      touch /var/log/pdpjunior-bootstrap.done
+      echo "==> $(date -u +%FT%TZ) TAYYOR: https://$DOMAIN/health"
+runcmd:
+  - [bash, /root/bootstrap-pdpjunior.sh]
