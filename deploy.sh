@@ -143,7 +143,7 @@ cmd_import() {
     local file="${1:-}"
     [ -n "$file" ] && [ -e "$file" ] || die "Foydalanish: ./deploy.sh import FAYL.json (yoki per-table papka)"
     info "$file konteynerga nusxalanmoqda"
-    dc exec -T web rm -rf /tmp/import_data
+    dc exec -T -u root web rm -rf /tmp/import_data
     dc cp "$file" web:/tmp/import_data
     local extra=()
     [ -n "${DRY_RUN:-}" ] && extra=(--dry-run)
