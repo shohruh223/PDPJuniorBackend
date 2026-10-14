@@ -9,9 +9,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# curl: konteyner ichidagi diagnostika uchun; libpq kerak emas (psycopg2-binary).
+# curl: diagnostika; gettext: tarjimalarni (.po -> .mo) kompilyatsiya qilish uchun; libpq kerak emas (psycopg2-binary).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
+    && apt-get install -y --no-install-recommends curl gettext \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
@@ -25,6 +25,11 @@ RUN useradd --system --create-home --uid 10001 app \
     && mkdir -p /app/media /app/static \
     && chmod +x /app/deploy/entrypoint.sh \
     && chown -R app:app /app
+
+# Tarjimalar: .mo fayllar git'da yo'q (.gitignore), shuning uchun build vaqtida yig'iladi.
+RUN SECRET_KEY=build-only ALLOWED_HOSTS=localhost REDIS_URL=redis://localhost:6379/0 \
+    DATABASE_URL=postgres://u:p@localhost:5432/d \
+    python manage.py compilemessages
 
 # Statik fayllarni build vaqtida yig'amiz. Bu qiymatlar FAQAT shu qadam uchun
 # (sirlar image ichida qolmaydi; haqiqiy qiymatlar ish vaqtida beriladi).

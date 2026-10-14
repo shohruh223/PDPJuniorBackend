@@ -44,6 +44,8 @@ jobs:
           python-version: "3.12"
           cache: pip
       - run: pip install -r requirements.txt
+      - name: Tarjimalar (.po -> .mo)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq gettext && python manage.py compilemessages
       - name: Migratsiyalar modellarga mosmi
         run: python manage.py makemigrations --check --dry-run
       - name: Statik fayllar (admin testlari manifest talab qiladi)
